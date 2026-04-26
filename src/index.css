@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+:root {
+  font-family: var(--font-body);
+  --font-body: 'Space Grotesk', sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --text: #334155;
+  --text-strong: #0f172a;
+  --muted: #5b6475;
+  --page-top: #fdf2f8;
+  --page-mid: #eef2ff;
+  --page-bottom: #ecfeff;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 0, 110, 0.2), transparent 26%),
+    radial-gradient(circle at top right, rgba(67, 97, 238, 0.16), transparent 28%),
+    linear-gradient(180deg, var(--page-top), var(--page-mid) 54%, var(--page-bottom));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: auto;
+  width: 38vw;
+  height: 38vw;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(22px);
+  opacity: 0.45;
+}
+
+body::before {
+  top: -10vw;
+  right: -8vw;
+  background: rgba(251, 86, 7, 0.18);
+}
+
+body::after {
+  bottom: -12vw;
+  left: -10vw;
+  background: rgba(6, 214, 160, 0.18);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+input[type='range'] {
+  accent-color: #ff006e;
+}
+
+#root {
+  min-height: 100vh;
+}
