@@ -14,6 +14,22 @@ const NOTE_MENU_COLUMN_COUNT = 6
 const NOTE_MENU_PAGE_SIZE = NOTE_MENU_ROW_COUNT * NOTE_MENU_COLUMN_COUNT
 const DEFAULT_LANE_VOLUME = 1
 const USER_PRESETS_STORAGE_KEY = 'groovebox:user-presets:v1'
+const DISTORTION_CURVE_SAMPLES = 4096
+const MAX_DISTORTION_CURVE_CACHE_SIZE = 80
+const AUDIO_PROFILES = {
+  standard: {
+    latencyHint: 'interactive',
+    distortionOversample: '2x',
+    scheduleAheadTime: 0.12,
+    lookAheadMs: 25,
+  },
+  constrained: {
+    latencyHint: 'playback',
+    distortionOversample: 'none',
+    scheduleAheadTime: 0.2,
+    lookAheadMs: 40,
+  },
+}
 const NOTE_NAMES = [
   { id: 'c', label: 'C' },
   { id: 'cs', label: 'C#' },
@@ -188,6 +204,36 @@ const PRESET_DEFAULTS = {
 }
 
 const SYNTH_PRESETS = [
+  {
+    id: 'synthtalk',
+    label: 'Synth Talk Bass',
+    color: '#dc2626',
+    role: 'bass',
+    waveform: 'sawtooth',
+    detune: 5,
+    detuneLevel: 0.1,
+    subLevel: 0.32,
+    subWaveform: 'sawtooth',
+    harmonicLevel: 0.14,
+    harmonicWaveform: 'sawtooth',
+    harmonicRatio: 2,
+    harmonicDetune: -4,
+    attack: 0.004,
+    decay: 0.18,
+    cutoff: 420,
+    envAmount: 2300,
+    resonance: 7,
+    filterType: 'lowpass',
+    filterFloorRatio: 0.62,
+    gain: 0.22,
+    sustainLevel: 0.14,
+    driveAmount: 24,
+    vibratoRate: 0.45,
+    vibratoDepth: 1.4,
+    delayLevel: 0.025,
+    delayTime: 0.13,
+    delayFeedback: 0.1,
+  },
   {
     id: 'acid',
     label: 'Warm Mono Bass',
@@ -965,7 +1011,7 @@ function createTrack(kind, labelNumber, presetId, steps) {
 }
 
 const INITIAL_BASS_TRACKS = [
-  createTrack('bass', 1, 'boom808', [
+  createTrack('bass', 1, 'synthtalk', [
     'c2',
     'rest',
     'c2',
@@ -1580,7 +1626,7 @@ function createNoiseBuffer(context) {
 }
 
 function createDistortionCurve(amount) {
-  const samples = 44100
+  const samples = DISTORTION_CURVE_SAMPLES
   const curve = new Float32Array(samples)
   const deg = Math.PI / 180
 
@@ -1590,6 +1636,46 @@ function createDistortionCurve(amount) {
   }
 
   return curve
+}
+
+function createDistortionCurveCache() {
+  const cache = new Map()
+
+  return {
+    get(amount) {
+      const safeAmount = Math.max(0.1, amount)
+      const cacheKey = Math.round(safeAmount * 10) / 10
+      const cachedCurve = cache.get(cacheKey)
+
+      if (cachedCurve) {
+        return cachedCurve
+      }
+
+      const curve = createDistortionCurve(cacheKey)
+      cache.set(cacheKey, curve)
+
+      if (cache.size > MAX_DISTORTION_CURVE_CACHE_SIZE) {
+        cache.delete(cache.keys().next().value)
+      }
+
+      return curve
+    },
+  }
+}
+
+function getAudioProfile() {
+  const hasCoarsePointer =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+  const hasTouch =
+    typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1
+
+  return isAndroid || (hasTouch && hasCoarsePointer)
+    ? AUDIO_PROFILES.constrained
+    : AUDIO_PROFILES.standard
 }
 
 function App() {
@@ -1634,7 +1720,8 @@ function App() {
   const audioContextRef = useRef(null)
   const masterGainRef = useRef(null)
   const noiseBufferRef = useRef(null)
-  const distortionCurveRef = useRef(createDistortionCurve(0.32 * 80))
+  const audioProfileRef = useRef(getAudioProfile())
+  const distortionCurveCacheRef = useRef(createDistortionCurveCache())
   const playbackStepRef = useRef(-1)
   const nextStepTimeRef = useRef(0)
   const schedulerTimeoutRef = useRef(null)
@@ -1704,7 +1791,9 @@ function App() {
         throw new Error('Web Audio is not available in this browser.')
       }
 
-      const context = new AudioContextConstructor()
+      const context = new AudioContextConstructor({
+        latencyHint: audioProfileRef.current.latencyHint,
+      })
       const masterGain = context.createGain()
       const compressor = context.createDynamicsCompressor()
 
@@ -1721,7 +1810,6 @@ function App() {
       audioContextRef.current = context
       masterGainRef.current = masterGain
       noiseBufferRef.current = createNoiseBuffer(context)
-      distortionCurveRef.current = createDistortionCurve(drive * 80)
     }
 
     if (audioContextRef.current.state !== 'running') {
@@ -1776,10 +1864,6 @@ function App() {
   useEffect(() => {
     chordVolumeRef.current = chordVolume
   }, [chordVolume])
-
-  useEffect(() => {
-    distortionCurveRef.current = createDistortionCurve(drive * 80)
-  }, [drive])
 
   useEffect(() => {
     return () => {
@@ -1919,8 +2003,8 @@ function App() {
     )
     envelope.gain.exponentialRampToValueAtTime(0.0001, startTime + duration)
 
-    shaper.curve = createDistortionCurve(Math.max(0.1, drive * preset.driveAmount))
-    shaper.oversample = '4x'
+    shaper.curve = distortionCurveCacheRef.current.get(drive * preset.driveAmount)
+    shaper.oversample = audioProfileRef.current.distortionOversample
 
     if (panner) {
       panner.pan.setValueAtTime(preset.pan, startTime)
@@ -2432,8 +2516,7 @@ function App() {
       return undefined
     }
 
-    const scheduleAheadTime = 0.12
-    const lookAheadMs = 25
+    const { scheduleAheadTime, lookAheadMs } = audioProfileRef.current
     const stepDuration = 60 / bpm / STEP_INTERVAL_DIVISOR
 
     playbackStepRef.current = 0
@@ -2968,7 +3051,7 @@ function App() {
       const newTrack = createTrack(
         'bass',
         labelNumber,
-        'boom808',
+        'synthtalk',
         createEmptySteps(patternStepCount),
       )
       bassCounterRef.current += 1
