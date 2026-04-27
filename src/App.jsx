@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const STEP_COUNT = 16
@@ -134,6 +134,132 @@ const CHORD_PROGRESSIONS = [
   ['one', 'four', 'five', 'four'],
   ['two', 'five', 'one', 'six'],
 ]
+const PAD_APP_KEYS = [
+  'q',
+  'w',
+  'e',
+  'r',
+  'a',
+  's',
+  'd',
+  'f',
+  'z',
+  'x',
+  'c',
+  'v',
+]
+const PAD_APP_ROOTS = NOTE_NAMES.map((note, index) => ({
+  ...note,
+  semitone: index,
+}))
+const PAD_APP_SCALES = [
+  { id: 'major', label: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11], qualities: ['', 'm', 'm', '', '', 'm', 'dim'] },
+  { id: 'minor', label: 'Minor', intervals: [0, 2, 3, 5, 7, 8, 10], qualities: ['m', 'dim', '', 'm', 'm', '', ''] },
+  { id: 'dorian', label: 'Dorian', intervals: [0, 2, 3, 5, 7, 9, 10], qualities: ['m', 'm', '', '', 'm', 'dim', ''] },
+  { id: 'lydian', label: 'Lydian', intervals: [0, 2, 4, 6, 7, 9, 11], qualities: ['', '', 'm', 'dim', '', 'm', 'm'] },
+]
+const PAD_APP_CHORDS = [
+  { degree: 0, roman: 'I', name: 'Home' },
+  { degree: 1, roman: 'ii', name: 'Lift' },
+  { degree: 2, roman: 'iii', name: 'Color' },
+  { degree: 3, roman: 'IV', name: 'Open' },
+  { degree: 4, roman: 'V', name: 'Push' },
+  { degree: 5, roman: 'vi', name: 'Soft' },
+  { degree: 0, roman: 'I7', name: 'Bright', variant: 'seventh' },
+  { degree: 4, roman: 'Vsus', name: 'Float', variant: 'sus' },
+  { degree: 5, roman: 'vi7', name: 'Deep', variant: 'seventh' },
+  { degree: 3, roman: 'IVadd9', name: 'Glow', variant: 'add9' },
+  { degree: 1, roman: 'ii7', name: 'Jazz', variant: 'seventh' },
+  { degree: 4, roman: 'V7', name: 'Turn', variant: 'dominant' },
+]
+const PAD_APP_COLORS = [
+  '#ff4d6d',
+  '#fb8500',
+  '#ffbe0b',
+  '#2ec4b6',
+  '#3a86ff',
+  '#8338ec',
+  '#06d6a0',
+  '#ef476f',
+  '#118ab2',
+  '#f15bb5',
+  '#00bbf9',
+  '#8ac926',
+]
+const PAD_APP_NOTE_OFFSETS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19]
+const PAD_APP_VARIATIONS = [
+  { id: 'low-open', label: 'Open', detail: '-8va spread' },
+  { id: 'sus2', label: 'Sus2', detail: 'Soft tension' },
+  { id: 'add9', label: 'Add9', detail: 'Glow' },
+  { id: 'minor-color', label: 'Minor', detail: 'Darker' },
+  { id: 'plain', label: 'Core', detail: 'Natural' },
+  { id: 'major7', label: 'Maj7', detail: 'Dreamy' },
+  { id: 'tight', label: 'Tight', detail: 'Close voicing' },
+  { id: 'sus4', label: 'Sus4', detail: 'Lift' },
+  { id: 'octave', label: 'Oct', detail: '+8va' },
+]
+const PAD_APP_PERFORMANCE_MODES = [
+  { id: 'hit', label: 'Hit' },
+  { id: 'strum', label: 'Strum' },
+  { id: 'arp', label: 'Arp' },
+  { id: 'repeat', label: 'Repeat' },
+]
+const PAD_APP_INSTRUMENTS = [
+  {
+    id: 'glass',
+    label: 'Glass Pad',
+    oscillator: 'triangle',
+    sheen: 'sine',
+    attack: 0.018,
+    chordGain: 0.1,
+    noteGain: 0.2,
+    filterPeak: 1.1,
+    detune: 4,
+  },
+  {
+    id: 'analog',
+    label: 'Analog Saw',
+    oscillator: 'sawtooth',
+    sheen: 'triangle',
+    attack: 0.012,
+    chordGain: 0.085,
+    noteGain: 0.18,
+    filterPeak: 0.82,
+    detune: 9,
+  },
+  {
+    id: 'organ',
+    label: 'Soft Organ',
+    oscillator: 'square',
+    sheen: 'sine',
+    attack: 0.008,
+    chordGain: 0.075,
+    noteGain: 0.15,
+    filterPeak: 0.74,
+    detune: 0,
+  },
+  {
+    id: 'pluck',
+    label: 'Pluck',
+    oscillator: 'triangle',
+    sheen: 'square',
+    attack: 0.006,
+    chordGain: 0.13,
+    noteGain: 0.24,
+    filterPeak: 1.35,
+    detune: 2,
+    percussive: true,
+  },
+]
+const PAD_APP_PROGRESSIONS = [
+  { id: 'pop', label: 'I-V-vi-IV', padIds: ['pad-0', 'pad-4', 'pad-5', 'pad-3'] },
+  { id: 'sad', label: 'vi-IV-I-V', padIds: ['pad-5', 'pad-3', 'pad-0', 'pad-4'] },
+  { id: 'lift', label: 'I-IV-V-IV', padIds: ['pad-0', 'pad-3', 'pad-4', 'pad-3'] },
+]
+
+function padAppFilterFrequency(amount) {
+  return 260 + amount ** 2 * 7800
+}
 
 function midiNumberToFrequency(noteNumber) {
   return Number((440 * 2 ** ((noteNumber - 69) / 12)).toFixed(2))
@@ -1678,7 +1804,911 @@ function getAudioProfile() {
     : AUDIO_PROFILES.standard
 }
 
-function App() {
+function chordQualityIntervals(quality, variant) {
+  if (variant === 'sus') {
+    return [0, 5, 7, 12]
+  }
+
+  if (quality === 'dim') {
+    return variant === 'seventh' ? [0, 3, 6, 10] : [0, 3, 6]
+  }
+
+  const third = quality === 'm' ? 3 : 4
+  const seventh = variant === 'dominant' ? 10 : 11
+  const intervals = [0, third, 7]
+
+  if (variant === 'seventh' || variant === 'dominant') {
+    intervals.push(seventh)
+  }
+
+  if (variant === 'add9') {
+    intervals.push(14)
+  }
+
+  return intervals
+}
+
+function padAppMidiToFrequency(noteNumber) {
+  return 440 * 2 ** ((noteNumber - 69) / 12)
+}
+
+function padAppNoteLabel(noteNumber) {
+  const octave = Math.floor(noteNumber / 12) - 1
+  const note = NOTE_NAMES[((noteNumber % 12) + 12) % 12]
+
+  return `${note.label}${octave}`
+}
+
+function applyPadAppVariation(noteNumbers, variationId) {
+  if (noteNumbers.length < 2) {
+    return noteNumbers
+  }
+
+  const [rootNote, third = rootNote + 4, fifth = rootNote + 7, seventh] = noteNumbers
+
+  switch (variationId) {
+    case 'low-open':
+      return [rootNote - 12, fifth, third + 12, seventh].filter(Number.isFinite)
+    case 'sus2':
+      return [rootNote, rootNote + 2, fifth, seventh].filter(Number.isFinite)
+    case 'add9':
+      return [...noteNumbers, rootNote + 14]
+    case 'minor-color':
+      return [rootNote, rootNote + 3, fifth, seventh].filter(Number.isFinite)
+    case 'major7':
+      return [rootNote, third, fifth, rootNote + 11]
+    case 'tight':
+      return noteNumbers.map((noteNumber) =>
+        noteNumber - rootNote > 10 ? noteNumber - 12 : noteNumber,
+      )
+    case 'sus4':
+      return [rootNote, rootNote + 5, fifth, seventh].filter(Number.isFinite)
+    case 'octave':
+      return [...noteNumbers, rootNote + 12]
+    default:
+      return noteNumbers
+  }
+}
+
+function buildPadAppPads(rootSemitone, scaleId, octave, toneMode, variationId) {
+  const scale = PAD_APP_SCALES.find((item) => item.id === scaleId) ?? PAD_APP_SCALES[0]
+  const rootMidi = 12 * (octave + 1) + rootSemitone
+
+  return PAD_APP_CHORDS.map((pad, index) => {
+    const scaleOffset = scale.intervals[pad.degree]
+    const rootNote = rootMidi + scaleOffset
+    const quality = scale.qualities[pad.degree]
+    const noteNumbers =
+      toneMode === 'notes'
+        ? [rootMidi + PAD_APP_NOTE_OFFSETS[index]]
+        : applyPadAppVariation(
+            chordQualityIntervals(quality, pad.variant).map((interval) => rootNote + interval),
+            variationId,
+          )
+
+    return {
+      ...pad,
+      id: `pad-${index}`,
+      keyName: PAD_APP_KEYS[index],
+      color: PAD_APP_COLORS[index],
+      noteNumbers,
+      label: toneMode === 'notes' ? padAppNoteLabel(noteNumbers[0]) : pad.roman,
+      sublabel: toneMode === 'notes' ? pad.name : noteNumbers.map(padAppNoteLabel).join(' '),
+    }
+  })
+}
+
+function ChordPadApp({ onOpenGroovebox }) {
+  const [rootId, setRootId] = useState('c')
+  const [scaleId, setScaleId] = useState('major')
+  const [instrumentId, setInstrumentId] = useState('glass')
+  const [toneMode, setToneMode] = useState('chords')
+  const [performanceMode, setPerformanceMode] = useState('hit')
+  const [strumDirection, setStrumDirection] = useState('up')
+  const [arpDirection, setArpDirection] = useState('up')
+  const [variationId, setVariationId] = useState('plain')
+  const [tempo, setTempo] = useState(112)
+  const [octave, setOctave] = useState(3)
+  const [volume, setVolume] = useState(0.72)
+  const [release, setRelease] = useState(0.38)
+  const [filterCutoff, setFilterCutoff] = useState(0.72)
+  const [delayMix, setDelayMix] = useState(0.16)
+  const [delayTime, setDelayTime] = useState(0.22)
+  const [isLatched, setIsLatched] = useState(false)
+  const [hasBassLayer, setHasBassLayer] = useState(false)
+  const [activePads, setActivePads] = useState([])
+  const [isRecordingLoop, setIsRecordingLoop] = useState(false)
+  const [isLoopPlaying, setIsLoopPlaying] = useState(false)
+  const [loopEvents, setLoopEvents] = useState([])
+
+  const audioContextRef = useRef(null)
+  const masterGainRef = useRef(null)
+  const masterFilterRef = useRef(null)
+  const delayNodeRef = useRef(null)
+  const delayGainRef = useRef(null)
+  const feedbackGainRef = useRef(null)
+  const activeVoicesRef = useRef(new Map())
+  const keyPadRef = useRef(new Map())
+  const padByIdRef = useRef(new Map())
+  const pressedKeysRef = useRef(new Set())
+  const loopRecordingStartRef = useRef(0)
+  const loopCycleTimerRef = useRef(null)
+  const loopTimeoutsRef = useRef([])
+
+  const root = PAD_APP_ROOTS.find((item) => item.id === rootId) ?? PAD_APP_ROOTS[0]
+  const pads = buildPadAppPads(root.semitone, scaleId, octave, toneMode, variationId)
+  const activeVariation =
+    PAD_APP_VARIATIONS.find((variation) => variation.id === variationId) ??
+    PAD_APP_VARIATIONS[4]
+  const instrument =
+    PAD_APP_INSTRUMENTS.find((preset) => preset.id === instrumentId) ??
+    PAD_APP_INSTRUMENTS[0]
+  const loopLengthSeconds = (60 / tempo) * 8
+
+  const ensurePadAudio = async () => {
+    if (!audioContextRef.current) {
+      const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext
+
+      if (!AudioContextConstructor) {
+        throw new Error('Web Audio is not available in this browser.')
+      }
+
+      const context = new AudioContextConstructor({ latencyHint: 'interactive' })
+      const masterGain = context.createGain()
+      const masterFilter = context.createBiquadFilter()
+      const compressor = context.createDynamicsCompressor()
+      const delay = context.createDelay(0.8)
+      const feedback = context.createGain()
+      const delayGain = context.createGain()
+
+      masterGain.gain.value = volume
+      masterFilter.type = 'lowpass'
+      masterFilter.frequency.value = padAppFilterFrequency(filterCutoff)
+      masterFilter.Q.value = 0.82
+      compressor.threshold.value = -20
+      compressor.knee.value = 16
+      compressor.ratio.value = 5
+      compressor.attack.value = 0.004
+      compressor.release.value = 0.2
+      delay.delayTime.value = delayTime
+      feedback.gain.value = 0.18
+      delayGain.gain.value = delayMix
+
+      masterGain.connect(masterFilter)
+      masterFilter.connect(compressor)
+      compressor.connect(context.destination)
+      masterFilter.connect(delay)
+      delay.connect(feedback)
+      feedback.connect(delay)
+      delay.connect(delayGain)
+      delayGain.connect(compressor)
+
+      audioContextRef.current = context
+      masterGainRef.current = masterGain
+      masterFilterRef.current = masterFilter
+      delayNodeRef.current = delay
+      delayGainRef.current = delayGain
+      feedbackGainRef.current = feedback
+    }
+
+    if (audioContextRef.current.state !== 'running') {
+      await audioContextRef.current.resume()
+    }
+
+    return audioContextRef.current
+  }
+
+  useEffect(() => {
+    keyPadRef.current = new Map(pads.map((pad) => [pad.keyName, pad]))
+    padByIdRef.current = new Map(pads.map((pad) => [pad.id, pad]))
+  }, [pads])
+
+  useEffect(() => {
+    if (!masterGainRef.current || !audioContextRef.current) {
+      return
+    }
+
+    masterGainRef.current.gain.setTargetAtTime(
+      volume,
+      audioContextRef.current.currentTime,
+      0.02,
+    )
+  }, [volume])
+
+  useEffect(() => {
+    if (!masterFilterRef.current || !audioContextRef.current) {
+      return
+    }
+
+    masterFilterRef.current.frequency.setTargetAtTime(
+      padAppFilterFrequency(filterCutoff),
+      audioContextRef.current.currentTime,
+      0.04,
+    )
+  }, [filterCutoff])
+
+  useEffect(() => {
+    if (!delayGainRef.current || !audioContextRef.current) {
+      return
+    }
+
+    delayGainRef.current.gain.setTargetAtTime(
+      toneMode === 'chords' ? delayMix : delayMix * 0.55,
+      audioContextRef.current.currentTime,
+      0.04,
+    )
+  }, [delayMix, toneMode])
+
+  useEffect(() => {
+    if (!delayNodeRef.current || !audioContextRef.current) {
+      return
+    }
+
+    delayNodeRef.current.delayTime.setTargetAtTime(
+      delayTime,
+      audioContextRef.current.currentTime,
+      0.04,
+    )
+  }, [delayTime])
+
+  const stopPad = useCallback((padId) => {
+    const context = audioContextRef.current
+    const voices = activeVoicesRef.current.get(padId)
+
+    if (!context || !voices) {
+      return
+    }
+
+    if (voices.timerId) {
+      window.clearInterval(voices.timerId)
+    }
+
+    const stopAt = context.currentTime + release + 0.08
+
+    voices.items.forEach((voice) => {
+      voice.gain.gain.cancelScheduledValues(context.currentTime)
+      voice.gain.gain.setTargetAtTime(0.0001, context.currentTime, release / 3)
+      voice.filter.frequency.setTargetAtTime(620, context.currentTime, release / 2)
+      voice.oscillators.forEach((oscillator) => {
+        try {
+          oscillator.stop(stopAt)
+        } catch {
+          // A scheduled oscillator can already have a stop time when rapidly retriggered.
+        }
+      })
+    })
+
+    activeVoicesRef.current.delete(padId)
+    setActivePads((currentPads) => currentPads.filter((id) => id !== padId))
+  }, [release])
+
+  const triggerPadNote = (
+    context,
+    noteNumber,
+    index,
+    totalNotes,
+    startAt,
+    duration,
+    isPercussive = false,
+  ) => {
+    const gain = context.createGain()
+    const filter = context.createBiquadFilter()
+    const pan = context.createStereoPanner()
+    const oscillator = context.createOscillator()
+    const sheen = context.createOscillator()
+    const shouldPercuss = isPercussive || instrument.percussive
+    const peakGain = shouldPercuss
+      ? instrument.noteGain
+      : toneMode === 'chords'
+        ? instrument.chordGain
+        : instrument.noteGain
+    const sustainGain = shouldPercuss
+      ? 0.0001
+      : toneMode === 'chords'
+        ? instrument.chordGain * 0.62
+        : instrument.noteGain * 0.64
+    const attack = instrument.attack
+    const filterTarget = 1800 + 2600 * instrument.filterPeak
+    const stopAt = startAt + duration + 0.08
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(520, startAt)
+    filter.frequency.exponentialRampToValueAtTime(
+      toneMode === 'chords' ? filterTarget : filterTarget * 0.78,
+      startAt + 0.16,
+    )
+    filter.Q.value = 1.4
+    pan.pan.value = toneMode === 'chords' ? (index - (totalNotes - 1) / 2) * 0.18 : 0
+    gain.gain.setValueAtTime(0.0001, startAt)
+    gain.gain.exponentialRampToValueAtTime(peakGain, startAt + attack)
+
+    if (shouldPercuss) {
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration)
+    } else {
+      gain.gain.setTargetAtTime(sustainGain, startAt + 0.12, 0.18)
+    }
+
+    oscillator.type = instrument.oscillator
+    oscillator.frequency.value = padAppMidiToFrequency(noteNumber)
+    oscillator.detune.value = instrument.detune
+      ? index % 2 === 0
+        ? -instrument.detune
+        : instrument.detune
+      : 0
+    sheen.type = instrument.sheen
+    sheen.frequency.value = padAppMidiToFrequency(noteNumber + 12)
+    sheen.detune.value = index % 2 === 0 ? 2 : -2
+
+    oscillator.connect(filter)
+    sheen.connect(filter)
+    filter.connect(gain)
+    gain.connect(pan)
+    pan.connect(masterGainRef.current)
+    oscillator.start(startAt)
+    sheen.start(startAt)
+    oscillator.stop(stopAt)
+    sheen.stop(stopAt)
+
+    return { gain, filter, oscillators: [oscillator, sheen] }
+  }
+
+  const clearLoopTimers = useCallback(() => {
+    if (loopCycleTimerRef.current) {
+      window.clearInterval(loopCycleTimerRef.current)
+      loopCycleTimerRef.current = null
+    }
+
+    loopTimeoutsRef.current.forEach((timerId) => window.clearTimeout(timerId))
+    loopTimeoutsRef.current = []
+  }, [])
+
+  const padPlaybackNotes = (pad) =>
+    hasBassLayer && toneMode === 'chords'
+      ? [pad.noteNumbers[0] - 12, ...pad.noteNumbers]
+      : pad.noteNumbers
+
+  const orderedArpNotes = (notes) => {
+    if (arpDirection === 'down') {
+      return [...notes].reverse()
+    }
+
+    if (arpDirection === 'bounce') {
+      const reversed = [...notes].reverse().slice(1, -1)
+      return [...notes, ...reversed]
+    }
+
+    if (arpDirection === 'random') {
+      return [notes[Math.floor(Math.random() * notes.length)]]
+    }
+
+    return notes
+  }
+
+  const playPad = async (pad, options = {}) => {
+    const context = await ensurePadAudio()
+    const playbackNotes = padPlaybackNotes(pad)
+
+    if (!options.skipRecord && isRecordingLoop) {
+      const offset = Math.max(0, context.currentTime - loopRecordingStartRef.current)
+      setLoopEvents((currentEvents) => [
+        ...currentEvents,
+        {
+          padId: pad.id,
+          offset: offset % loopLengthSeconds,
+          duration: performanceMode === 'arp' || performanceMode === 'repeat' ? 0.9 : 0.55,
+        },
+      ])
+    }
+
+    if (!options.loopTrigger && isLatched && activeVoicesRef.current.has(pad.id)) {
+      stopPad(pad.id)
+      return
+    }
+
+    stopPad(pad.id)
+
+    const now = context.currentTime
+    const stepSeconds = 60 / tempo / 2
+    const items = []
+    let timerId = null
+
+    if (performanceMode === 'arp' || performanceMode === 'repeat') {
+      let stepIndex = 0
+      const triggerStep = () => {
+        const stepNow = context.currentTime
+        const arpNotes = orderedArpNotes(playbackNotes)
+        const noteIndex =
+          performanceMode === 'repeat' ? stepIndex % playbackNotes.length : stepIndex
+        const notes =
+          performanceMode === 'repeat'
+            ? playbackNotes
+            : [arpNotes[noteIndex % arpNotes.length]]
+
+        notes.forEach((noteNumber, index) => {
+          items.push(
+            triggerPadNote(
+              context,
+              noteNumber,
+              index,
+              notes.length,
+              stepNow,
+              stepSeconds * 0.72,
+              true,
+            ),
+          )
+        })
+
+        stepIndex += 1
+      }
+
+      triggerStep()
+      timerId = window.setInterval(triggerStep, stepSeconds * 1000)
+    } else {
+      const strumSpacing = performanceMode === 'strum' && toneMode === 'chords' ? 0.045 : 0
+      const notes =
+        performanceMode === 'strum' && strumDirection === 'down'
+          ? [...playbackNotes].reverse()
+          : playbackNotes
+
+      notes.forEach((noteNumber, index) => {
+        items.push(
+          triggerPadNote(
+            context,
+            noteNumber,
+            index,
+            notes.length,
+            now + index * strumSpacing,
+            8,
+          ),
+        )
+      })
+    }
+
+    activeVoicesRef.current.set(pad.id, { items, timerId })
+    setActivePads((currentPads) =>
+      currentPads.includes(pad.id) ? currentPads : [...currentPads, pad.id],
+    )
+  }
+
+  const releasePad = (pad, options = {}) => {
+    if (!options.loopTrigger && !isLatched) {
+      stopPad(pad.id)
+    }
+  }
+
+  const scheduleLoopCycle = () => {
+    loopTimeoutsRef.current.forEach((timerId) => window.clearTimeout(timerId))
+    loopTimeoutsRef.current = loopEvents.map((event) =>
+      window.setTimeout(() => {
+        const pad = padByIdRef.current.get(event.padId)
+
+        if (!pad) {
+          return
+        }
+
+        void playPad(pad, { skipRecord: true, loopTrigger: true })
+        window.setTimeout(() => stopPad(pad.id), event.duration * 1000)
+      }, event.offset * 1000),
+    )
+  }
+
+  const startLoopPlayback = () => {
+    if (!loopEvents.length) {
+      return
+    }
+
+    clearLoopTimers()
+    scheduleLoopCycle()
+    loopCycleTimerRef.current = window.setInterval(
+      scheduleLoopCycle,
+      loopLengthSeconds * 1000,
+    )
+    setIsLoopPlaying(true)
+  }
+
+  const stopLoopPlayback = () => {
+    clearLoopTimers()
+    setIsLoopPlaying(false)
+  }
+
+  const handleLoopRecordToggle = async () => {
+    const context = await ensurePadAudio()
+
+    if (isRecordingLoop) {
+      setIsRecordingLoop(false)
+      return
+    }
+
+    stopLoopPlayback()
+    setLoopEvents([])
+    loopRecordingStartRef.current = context.currentTime
+    setIsRecordingLoop(true)
+  }
+
+  const handleLoopPlayToggle = () => {
+    if (isLoopPlaying) {
+      stopLoopPlayback()
+      return
+    }
+
+    startLoopPlayback()
+  }
+
+  const handleLoopClear = () => {
+    stopLoopPlayback()
+    setIsRecordingLoop(false)
+    setLoopEvents([])
+  }
+
+  const loadProgression = (progression) => {
+    const beatSeconds = 60 / tempo
+
+    stopLoopPlayback()
+    setIsRecordingLoop(false)
+    setLoopEvents(
+      progression.padIds.map((padId, index) => ({
+        padId,
+        offset: index * beatSeconds * 2,
+        duration: beatSeconds * 1.7,
+      })),
+    )
+  }
+
+  useEffect(() => () => clearLoopTimers(), [clearLoopTimers])
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase()
+      const pad = keyPadRef.current.get(key)
+
+      if (!pad || pressedKeysRef.current.has(key)) {
+        return
+      }
+
+      event.preventDefault()
+      pressedKeysRef.current.add(key)
+      void playPad(pad)
+    }
+
+    const handleKeyUp = (event) => {
+      const key = event.key.toLowerCase()
+      const pad = keyPadRef.current.get(key)
+
+      if (!pad) {
+        return
+      }
+
+      event.preventDefault()
+      pressedKeysRef.current.delete(key)
+      releasePad(pad)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  })
+
+  useEffect(() => {
+    activeVoicesRef.current.forEach((_, padId) => stopPad(padId))
+    pressedKeysRef.current.clear()
+  }, [rootId, scaleId, toneMode, variationId, octave, stopPad])
+
+  return (
+    <main className="pad-app-shell">
+      <header className="pad-hero">
+        <div>
+          <h1>Chord Pad</h1>
+        </div>
+
+        <a href="#groovebox" className="app-switch-button" onClick={onOpenGroovebox}>
+          Groovebox
+        </a>
+      </header>
+
+      <section className="pad-workspace">
+        <div className="pad-controls" aria-label="Chord Pad controls">
+          <label className="pad-control">
+            <span>Root</span>
+            <select value={rootId} onChange={(event) => setRootId(event.target.value)}>
+              {PAD_APP_ROOTS.map((note) => (
+                <option key={note.id} value={note.id}>
+                  {note.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="pad-control">
+            <span>Scale</span>
+            <select value={scaleId} onChange={(event) => setScaleId(event.target.value)}>
+              {PAD_APP_SCALES.map((scale) => (
+                <option key={scale.id} value={scale.id}>
+                  {scale.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="pad-control">
+            <span>Instrument</span>
+            <select
+              value={instrumentId}
+              onChange={(event) => setInstrumentId(event.target.value)}
+            >
+              {PAD_APP_INSTRUMENTS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="pad-control">
+            <span>Sound</span>
+            <div className="segmented-control">
+              {['chords', 'notes'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={toneMode === mode ? 'active' : ''}
+                  onClick={() => setToneMode(mode)}
+                >
+                  {mode === 'chords' ? 'Chords' : 'Notes'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pad-control performance-control">
+            <span>Play</span>
+            <div className="mode-grid">
+              {PAD_APP_PERFORMANCE_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={performanceMode === mode.id ? 'active' : ''}
+                  onClick={() => setPerformanceMode(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pad-control">
+            <span>Strum</span>
+            <div className="segmented-control">
+              {['up', 'down'].map((direction) => (
+                <button
+                  key={direction}
+                  type="button"
+                  className={strumDirection === direction ? 'active' : ''}
+                  onClick={() => setStrumDirection(direction)}
+                >
+                  {direction === 'up' ? 'Up' : 'Down'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="pad-control">
+            <span>Arp</span>
+            <select value={arpDirection} onChange={(event) => setArpDirection(event.target.value)}>
+              <option value="up">Up</option>
+              <option value="down">Down</option>
+              <option value="bounce">Bounce</option>
+              <option value="random">Random</option>
+            </select>
+          </label>
+
+          <label className="pad-control">
+            <span>Tempo</span>
+            <input
+              type="range"
+              min="70"
+              max="180"
+              value={tempo}
+              onChange={(event) => setTempo(Number(event.target.value))}
+            />
+            <strong>{tempo} BPM</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Octave</span>
+            <input
+              type="range"
+              min="2"
+              max="5"
+              value={octave}
+              onChange={(event) => setOctave(Number(event.target.value))}
+            />
+            <strong>{octave}</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Volume</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+            <strong>{Math.round(volume * 100)}</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Filter</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={filterCutoff}
+              onChange={(event) => setFilterCutoff(Number(event.target.value))}
+            />
+            <strong>{Math.round(filterCutoff * 100)}</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Delay</span>
+            <input
+              type="range"
+              min="0"
+              max="0.42"
+              step="0.01"
+              value={delayMix}
+              onChange={(event) => setDelayMix(Number(event.target.value))}
+            />
+            <strong>{Math.round(delayMix * 100)}</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Echo Time</span>
+            <input
+              type="range"
+              min="0.08"
+              max="0.58"
+              step="0.01"
+              value={delayTime}
+              onChange={(event) => setDelayTime(Number(event.target.value))}
+            />
+            <strong>{delayTime.toFixed(2)}s</strong>
+          </label>
+
+          <label className="pad-control">
+            <span>Release</span>
+            <input
+              type="range"
+              min="0.08"
+              max="1.2"
+              step="0.01"
+              value={release}
+              onChange={(event) => setRelease(Number(event.target.value))}
+            />
+            <strong>{release.toFixed(2)}s</strong>
+          </label>
+
+          <button
+            type="button"
+            className={`latch-button ${isLatched ? 'active' : ''}`}
+            onClick={() => setIsLatched((current) => !current)}
+            aria-pressed={isLatched}
+          >
+            Hold
+          </button>
+
+          <button
+            type="button"
+            className={`latch-button ${hasBassLayer ? 'active' : ''}`}
+            onClick={() => setHasBassLayer((current) => !current)}
+            aria-pressed={hasBassLayer}
+          >
+            Bass
+          </button>
+
+          <div className="loop-control">
+            <div className="loop-control-top">
+              <span>Loop</span>
+              <strong>{loopEvents.length} hits</strong>
+            </div>
+
+            <div className="loop-buttons">
+              <button
+                type="button"
+                className={isRecordingLoop ? 'active record' : ''}
+                onClick={() => void handleLoopRecordToggle()}
+              >
+                Rec
+              </button>
+              <button
+                type="button"
+                className={isLoopPlaying ? 'active' : ''}
+                onClick={handleLoopPlayToggle}
+                disabled={!loopEvents.length}
+              >
+                Play
+              </button>
+              <button type="button" onClick={handleLoopClear} disabled={!loopEvents.length}>
+                Clear
+              </button>
+            </div>
+
+            <div className="progression-buttons">
+              {PAD_APP_PROGRESSIONS.map((progression) => (
+                <button
+                  key={progression.id}
+                  type="button"
+                  onClick={() => loadProgression(progression)}
+                >
+                  {progression.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="pad-play-area">
+          <div className="variation-panel">
+            <div>
+              <span>Variation</span>
+              <strong>{activeVariation.label}</strong>
+            </div>
+
+            <div className="variation-grid" role="group" aria-label="Chord variations">
+              {PAD_APP_VARIATIONS.map((variation) => (
+                <button
+                  key={variation.id}
+                  type="button"
+                  className={variationId === variation.id ? 'active' : ''}
+                  onClick={() => setVariationId(variation.id)}
+                >
+                  <strong>{variation.label}</strong>
+                  <span>{variation.detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="performance-grid" role="group" aria-label="Playable note and chord pads">
+            {pads.map((pad) => (
+              <button
+                key={pad.id}
+                type="button"
+                className={`performance-pad ${activePads.includes(pad.id) ? 'active' : ''}`}
+                style={{ '--pad-color': pad.color }}
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  void playPad(pad)
+                }}
+                onPointerUp={() => releasePad(pad)}
+                onPointerCancel={() => releasePad(pad)}
+                onPointerLeave={(event) => {
+                  if (event.pointerType === 'mouse' && event.buttons === 1) {
+                    releasePad(pad)
+                  }
+                }}
+                aria-pressed={activePads.includes(pad.id)}
+                aria-label={`${pad.label} pad, keyboard ${pad.keyName}`}
+              >
+                <span className="pad-key">{pad.keyName.toUpperCase()}</span>
+                <strong>{pad.label}</strong>
+                <span>{pad.sublabel}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function GrooveboxApp({ onOpenChordPad }) {
   const [bassTracks, setBassTracks] = useState(INITIAL_BASS_TRACKS)
   const [melodyTracks, setMelodyTracks] = useState(INITIAL_MELODY_TRACKS)
   const [drums, setDrums] = useState(INITIAL_DRUMS)
@@ -3765,7 +4795,12 @@ function App() {
   return (
     <main className="app-shell">
       <section className="hero-panel">
-        <h1>Groovebox</h1>
+        <div className="app-title-row">
+          <h1>Groovebox</h1>
+          <a href="#pad" className="app-switch-button" onClick={onOpenChordPad}>
+            Chord Pad
+          </a>
+        </div>
 
         <div className="transport">
           <button
@@ -4200,6 +5235,33 @@ function App() {
         </div>
       ) : null}
     </main>
+  )
+}
+
+function getActiveAppFromHash() {
+  if (typeof window === 'undefined') {
+    return 'pad'
+  }
+
+  return window.location.hash === '#groovebox' ? 'groovebox' : 'pad'
+}
+
+function App() {
+  const [activeApp, setActiveApp] = useState(getActiveAppFromHash)
+
+  useEffect(() => {
+    const handleHashChange = () => setActiveApp(getActiveAppFromHash())
+
+    handleHashChange()
+    window.addEventListener('hashchange', handleHashChange)
+
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  return activeApp === 'pad' ? (
+    <ChordPadApp onOpenGroovebox={() => setActiveApp('groovebox')} />
+  ) : (
+    <GrooveboxApp onOpenChordPad={() => setActiveApp('pad')} />
   )
 }
 
