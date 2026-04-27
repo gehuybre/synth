@@ -1,0 +1,1 @@
+var e=`/synth/assets/41_highlife_126_beat_4-4-DlErz_BZ.mid`;export{e as default};

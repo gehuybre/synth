@@ -1,0 +1,1 @@
+var e=`/synth/assets/4_reggae_141_beat_4-4-BmgSHZnM.mid`;export{e as default};

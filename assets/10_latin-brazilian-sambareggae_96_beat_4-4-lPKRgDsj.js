@@ -1,0 +1,1 @@
+var e=`/synth/assets/10_latin-brazilian-sambareggae_96_beat_4-4-Ckn__Gmm.mid`;export{e as default};

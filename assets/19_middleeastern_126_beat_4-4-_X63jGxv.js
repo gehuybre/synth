@@ -1,0 +1,1 @@
+var e=`/synth/assets/19_middleeastern_126_beat_4-4-Ubj6aN4Y.mid`;export{e as default};

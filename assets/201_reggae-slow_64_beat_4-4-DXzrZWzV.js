@@ -1,0 +1,1 @@
+var e=`/synth/assets/201_reggae-slow_64_beat_4-4-BThCFMXt.mid`;export{e as default};

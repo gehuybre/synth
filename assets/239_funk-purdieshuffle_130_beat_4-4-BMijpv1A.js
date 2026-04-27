@@ -1,0 +1,1 @@
+var e=`/synth/assets/239_funk-purdieshuffle_130_beat_4-4-DmyMQu96.mid`;export{e as default};

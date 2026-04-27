@@ -1,0 +1,1 @@
+var e=`/synth/assets/146_latin-brazilian-baiao_95_beat_4-4-cb0qHTVs.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/81_dance-breakbeat_170_beat_4-4-C0IgTZtG.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/39_rock-indie_104_beat_4-4-M_cMLGCk.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/7_latin-brazilian-maracatu_96_beat_4-4-DiQk_pmb.mid`;export{e as default};

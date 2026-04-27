@@ -1,0 +1,1 @@
+var e=`/synth/assets/1_latin-venezuelan-sangueo_101_beat_4-4-kHeXfkP7.mid`;export{e as default};

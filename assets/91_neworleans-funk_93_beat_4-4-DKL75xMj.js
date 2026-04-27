@@ -1,0 +1,1 @@
+var e=`/synth/assets/91_neworleans-funk_93_beat_4-4-FYXNbW5g.mid`;export{e as default};

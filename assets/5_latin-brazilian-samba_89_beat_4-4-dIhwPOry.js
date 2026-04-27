@@ -1,0 +1,1 @@
+var e=`/synth/assets/5_latin-brazilian-samba_89_beat_4-4-Crb4nJYG.mid`;export{e as default};

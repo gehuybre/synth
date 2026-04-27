@@ -1,0 +1,1 @@
+var e=`/synth/assets/96_pop_142_beat_4-4-DLy4MAOB.mid`;export{e as default};

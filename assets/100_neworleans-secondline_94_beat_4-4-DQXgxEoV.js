@@ -1,0 +1,1 @@
+var e=`/synth/assets/100_neworleans-secondline_94_beat_4-4-Cfm5diEO.mid`;export{e as default};

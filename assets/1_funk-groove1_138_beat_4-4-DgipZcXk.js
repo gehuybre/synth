@@ -1,0 +1,1 @@
+var e=`/synth/assets/1_funk-groove1_138_beat_4-4-BnxQBDLJ.mid`;export{e as default};

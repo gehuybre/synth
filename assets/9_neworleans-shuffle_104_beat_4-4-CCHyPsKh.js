@@ -1,0 +1,1 @@
+var e=`/synth/assets/9_neworleans-shuffle_104_beat_4-4-oEtbZQii.mid`;export{e as default};

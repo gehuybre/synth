@@ -1,0 +1,1 @@
+var e=`/synth/assets/31_afrobeat_98_beat_4-4-C-iO9bX6.mid`;export{e as default};

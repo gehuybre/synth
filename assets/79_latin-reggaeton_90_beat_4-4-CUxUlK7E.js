@@ -1,0 +1,1 @@
+var e=`/synth/assets/79_latin-reggaeton_90_beat_4-4-D-8K-T_V.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/26_dance-disco_137_beat_4-4-CWPkvnvA.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/19_latin-brazilian-ijexa_108_beat_4-4-DH0PCEp3.mid`;export{e as default};

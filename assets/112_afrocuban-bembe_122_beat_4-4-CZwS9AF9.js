@@ -1,0 +1,1 @@
+var e=`/synth/assets/112_afrocuban-bembe_122_beat_4-4-BYzZe5WL.mid`;export{e as default};

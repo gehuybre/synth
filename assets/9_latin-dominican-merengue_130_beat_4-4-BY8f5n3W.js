@@ -1,0 +1,1 @@
+var e=`/synth/assets/9_latin-dominican-merengue_130_beat_4-4-CB45MXq_.mid`;export{e as default};

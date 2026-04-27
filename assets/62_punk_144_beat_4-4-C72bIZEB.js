@@ -1,0 +1,1 @@
+var e=`/synth/assets/62_punk_144_beat_4-4-Q8dZ28JI.mid`;export{e as default};

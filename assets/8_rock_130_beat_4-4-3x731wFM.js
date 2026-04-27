@@ -1,0 +1,1 @@
+var e=`/synth/assets/8_rock_130_beat_4-4-5liCVFMP.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/4_jazz-linear_182_beat_4-4-GUPPMqxV.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/2_latin-brazilian_101_beat_4-4-BShA5fRP.mid`;export{e as default};

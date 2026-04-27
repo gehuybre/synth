@@ -1,0 +1,1 @@
+var e=`/synth/assets/22_latin-brazilian-frevo_133_beat_4-4-RGymX71u.mid`;export{e as default};

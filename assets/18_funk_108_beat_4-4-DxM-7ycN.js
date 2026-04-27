@@ -1,0 +1,1 @@
+var e=`/synth/assets/18_funk_108_beat_4-4-BP4h7t5K.mid`;export{e as default};

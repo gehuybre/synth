@@ -1,0 +1,1 @@
+var e=`/synth/assets/23_latin-brazilian-songo_120_beat_4-4-CU-G4Ieb.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/142_gospel_120_beat_4-4-Cfw3RiDI.mid`;export{e as default};

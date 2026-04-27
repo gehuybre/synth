@@ -1,0 +1,1 @@
+var e=`/synth/assets/15_hiphop_94_beat_4-4-CdPM8OMs.mid`;export{e as default};

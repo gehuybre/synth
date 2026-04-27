@@ -1,0 +1,1 @@
+var e=`/synth/assets/3_rock-rockabilly_200_beat_4-4-V7-pkU0O.mid`;export{e as default};

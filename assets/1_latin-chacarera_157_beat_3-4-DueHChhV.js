@@ -1,0 +1,1 @@
+var e=`/synth/assets/1_latin-chacarera_157_beat_3-4-C5_3_2rG.mid`;export{e as default};

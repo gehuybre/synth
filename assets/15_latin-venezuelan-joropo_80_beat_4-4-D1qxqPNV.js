@@ -1,0 +1,1 @@
+var e=`/synth/assets/15_latin-venezuelan-joropo_80_beat_4-4-DBIV9X6Y.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/17_blues-shuffle_72_beat_4-4-BqHImKOa.mid`;export{e as default};

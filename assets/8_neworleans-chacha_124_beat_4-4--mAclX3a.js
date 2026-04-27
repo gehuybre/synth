@@ -1,0 +1,1 @@
+var e=`/synth/assets/8_neworleans-chacha_124_beat_4-4-xCku21rR.mid`;export{e as default};

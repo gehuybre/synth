@@ -1,0 +1,1 @@
+var e=`/synth/assets/161_afrocuban-rhumba_110_beat_4-4-DHcJQI0B.mid`;export{e as default};

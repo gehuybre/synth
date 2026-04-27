@@ -1,0 +1,1 @@
+var e=`/synth/assets/13_afrocuban-calypso_124_beat_4-4-EJZ0_B1r.mid`;export{e as default};

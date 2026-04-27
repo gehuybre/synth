@@ -1,0 +1,1 @@
+var e=`/synth/assets/20_rock_120_beat_4-4-BYhaEXRx.mid`;export{e as default};

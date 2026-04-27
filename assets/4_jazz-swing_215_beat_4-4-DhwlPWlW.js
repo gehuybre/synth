@@ -1,0 +1,1 @@
+var e=`/synth/assets/4_jazz-swing_215_beat_4-4-4vLppGkp.mid`;export{e as default};

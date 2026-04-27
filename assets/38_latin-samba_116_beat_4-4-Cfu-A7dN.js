@@ -1,0 +1,1 @@
+var e=`/synth/assets/38_latin-samba_116_beat_4-4-BAsTppv4.mid`;export{e as default};

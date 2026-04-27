@@ -1,0 +1,1 @@
+var e=`/synth/assets/29_latin-bounce_106_beat_4-4-CVGyLQ8i.mid`;export{e as default};

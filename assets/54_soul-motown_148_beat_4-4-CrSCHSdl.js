@@ -1,0 +1,1 @@
+var e=`/synth/assets/54_soul-motown_148_beat_4-4-BjG64r0j.mid`;export{e as default};

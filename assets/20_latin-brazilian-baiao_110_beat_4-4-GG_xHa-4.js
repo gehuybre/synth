@@ -1,0 +1,1 @@
+var e=`/synth/assets/20_latin-brazilian-baiao_110_beat_4-4-Dclf-MOk.mid`;export{e as default};

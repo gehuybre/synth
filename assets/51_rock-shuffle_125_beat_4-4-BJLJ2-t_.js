@@ -1,0 +1,1 @@
+var e=`/synth/assets/51_rock-shuffle_125_beat_4-4-_lYw3NHe.mid`;export{e as default};

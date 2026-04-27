@@ -1,0 +1,1 @@
+var e=`data:audio/midi;base64,TVRoZAAAAAYAAAABAeBNVHJrAAAAbAD/UQMGihsA/1gEBAIYCAD/WQIAAADJAAC5BFoAyQCMfpkkK3AkAG4mZi0oeUQmAC0oAF8kK3EkAGooZTgmfDkoADgmAGUkLXEkAGwmYh8mAAAmeVEmAHIobHIoAGwrf3ArAJlxuQRaAf8vAA==`;export{e as default};

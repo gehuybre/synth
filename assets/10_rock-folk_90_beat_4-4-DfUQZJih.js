@@ -1,0 +1,1 @@
+var e=`/synth/assets/10_rock-folk_90_beat_4-4-BW88WuNB.mid`;export{e as default};

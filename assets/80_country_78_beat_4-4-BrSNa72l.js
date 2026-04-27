@@ -1,0 +1,1 @@
+var e=`/synth/assets/80_country_78_beat_4-4-CUrRYQk3.mid`;export{e as default};

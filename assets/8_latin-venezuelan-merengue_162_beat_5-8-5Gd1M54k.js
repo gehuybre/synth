@@ -1,0 +1,1 @@
+var e=`/synth/assets/8_latin-venezuelan-merengue_162_beat_5-8-CU2-0X6A.mid`;export{e as default};

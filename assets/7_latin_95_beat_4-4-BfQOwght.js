@@ -1,0 +1,1 @@
+var e=`/synth/assets/7_latin_95_beat_4-4-RUbMw_Cz.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/2_latin-brazilian-bossa_127_beat_4-4-BZPhO9vs.mid`;export{e as default};

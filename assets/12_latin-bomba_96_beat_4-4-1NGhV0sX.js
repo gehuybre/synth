@@ -1,0 +1,1 @@
+var e=`/synth/assets/12_latin-bomba_96_beat_4-4-DHHXyJDZ.mid`;export{e as default};

@@ -1,0 +1,1 @@
+var e=`/synth/assets/11_soul_96_beat_4-4-DkRjfwZG.mid`;export{e as default};

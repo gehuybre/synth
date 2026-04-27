@@ -1,0 +1,1 @@
+var e=`/synth/assets/6_latin-brazilian-maracatu_96_beat_4-4-B1V_Trlb.mid`;export{e as default};

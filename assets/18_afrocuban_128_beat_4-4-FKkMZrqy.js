@@ -1,0 +1,1 @@
+var e=`/synth/assets/18_afrocuban_128_beat_4-4-JGxXZiVt.mid`;export{e as default};
