@@ -21,6 +21,10 @@ const MIDI_SNIPPET_FILES = import.meta.glob('../MIDI LOOPS/snippets/*.mid', {
   import: 'default',
   eager: true,
 })
+const GROOVE_DRUM_LOOP_FILES = import.meta.glob('../MIDI LOOPS/groove/**/*.mid', {
+  query: '?url',
+  import: 'default',
+})
 
 function parseLoopMetadata(path) {
   const name = path.split('/').at(-1) ?? ''
@@ -98,6 +102,40 @@ export const MIDI_SNIPPET_PRESETS = Object.entries(MIDI_SNIPPET_FILES)
   })
   .sort((left, right) => left.label.localeCompare(right.label))
 
+function parseGrooveDrumMetadata(path, loadUrl) {
+  const fileName = path.split('/').at(-1) ?? ''
+  const match = fileName.match(/^(\d+)_([^_]+(?:-[^_]+)*)_(\d+)_(beat|fill)_([0-9]+-[0-9]+)\.mid$/i)
+
+  if (!match) {
+    return null
+  }
+
+  const [, index, style, bpm, type, signature] = match
+
+  return {
+    id: `groove:${path}`,
+    label: `${style.replaceAll('-', ' ')} ${bpm}`,
+    loadUrl,
+    path,
+    index: Number(index),
+    style,
+    bpm: Number(bpm),
+    type,
+    signature,
+  }
+}
+
+export const GROOVE_DRUM_LOOP_PRESETS = Object.entries(GROOVE_DRUM_LOOP_FILES)
+  .map(([path, loadUrl]) => parseGrooveDrumMetadata(path, loadUrl))
+  .filter(Boolean)
+  .sort((left, right) => {
+    if (left.style !== right.style) {
+      return left.style.localeCompare(right.style)
+    }
+
+    return left.path.localeCompare(right.path)
+  })
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
@@ -130,6 +168,92 @@ function findBarTicks(midi) {
   }
 
   return ticksPerBeat * 4
+}
+
+function findLoopTicks(midi) {
+  return Math.max(
+    findBarTicks(midi),
+    ...midi.tracks.map((track) =>
+      track.reduce((tick, event) => tick + (event.deltaTime ?? 0), 0),
+    ),
+  )
+}
+
+function mapGrooveDrumVoice(noteNumber) {
+  if (noteNumber === 36) {
+    return 'kick'
+  }
+
+  if (noteNumber === 37) {
+    return 'rim'
+  }
+
+  if (noteNumber === 38 || noteNumber === 40) {
+    return 'snare'
+  }
+
+  if (noteNumber === 22 || noteNumber === 42 || noteNumber === 44) {
+    return 'hat'
+  }
+
+  if (noteNumber === 26 || noteNumber === 46) {
+    return 'openHat'
+  }
+
+  if ([43, 45, 47, 48, 50, 58].includes(noteNumber)) {
+    return 'tom'
+  }
+
+  if ([49, 52, 55, 57].includes(noteNumber)) {
+    return 'crash'
+  }
+
+  if ([51, 53, 59].includes(noteNumber)) {
+    return 'openHat'
+  }
+
+  return null
+}
+
+export async function loadGrooveDrumLoop(url) {
+  const response = await fetch(url)
+  const buffer = await response.arrayBuffer()
+  const midi = parseMidi(new Uint8Array(buffer))
+  const bpm = findTempoBpm(midi)
+  const ticksPerBeat = midi.header.ticksPerBeat ?? 480
+  const loopTicks = findLoopTicks(midi)
+  const secondsPerTick = 60 / bpm / ticksPerBeat
+  const events = []
+
+  midi.tracks.forEach((track) => {
+    let tick = 0
+
+    track.forEach((event) => {
+      tick += event.deltaTime ?? 0
+
+      if (event.type !== 'noteOn' || event.velocity <= 0) {
+        return
+      }
+
+      const voice = mapGrooveDrumVoice(event.noteNumber)
+
+      if (!voice) {
+        return
+      }
+
+      events.push({
+        voice,
+        offset: tick * secondsPerTick,
+        velocity: event.velocity / 127,
+      })
+    })
+  })
+
+  return {
+    bpm,
+    duration: loopTicks * secondsPerTick,
+    events: events.sort((left, right) => left.offset - right.offset),
+  }
 }
 
 function extractTracks(midi) {
