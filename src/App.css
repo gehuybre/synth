@@ -145,7 +145,8 @@
 
 .pad-control,
 .latch-button,
-.loop-control {
+.loop-control,
+.beat-control {
   border-radius: 16px;
   background: rgba(248, 250, 252, 0.86);
   border: 1px solid rgba(148, 163, 184, 0.24);
@@ -231,6 +232,12 @@
   padding: 10px;
 }
 
+.beat-control {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
 .loop-control-top {
   display: flex;
   align-items: center;
@@ -282,6 +289,52 @@
 .loop-buttons button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.beat-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.beat-buttons button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.beat-buttons button.active {
+  background: #0f172a;
+  color: white;
+}
+
+.beat-volume {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.beat-volume span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.beat-volume strong {
+  min-width: 3ch;
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  text-align: right;
 }
 
 .progression-buttons {
@@ -1317,6 +1370,8 @@
 .segmented-control button:focus-visible,
 .mode-grid button:focus-visible,
 .loop-buttons button:focus-visible,
+.beat-buttons button:focus-visible,
+.beat-volume input:focus-visible,
 .progression-buttons button:focus-visible,
 .variation-grid button:focus-visible,
 .latch-button:focus-visible,

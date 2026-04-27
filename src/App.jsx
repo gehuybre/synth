@@ -256,6 +256,29 @@ const PAD_APP_PROGRESSIONS = [
   { id: 'sad', label: 'vi-IV-I-V', padIds: ['pad-5', 'pad-3', 'pad-0', 'pad-4'] },
   { id: 'lift', label: 'I-IV-V-IV', padIds: ['pad-0', 'pad-3', 'pad-4', 'pad-3'] },
 ]
+const PAD_APP_BEATS = [
+  {
+    id: 'house',
+    label: 'House',
+    kick: [0, 4, 8, 12],
+    snare: [4, 12],
+    hat: [2, 6, 10, 14],
+  },
+  {
+    id: 'break',
+    label: 'Break',
+    kick: [0, 3, 8, 11],
+    snare: [4, 10, 12],
+    hat: [2, 5, 7, 9, 13, 15],
+  },
+  {
+    id: 'trap',
+    label: 'Trap',
+    kick: [0, 6, 9, 14],
+    snare: [4, 12],
+    hat: [0, 2, 4, 6, 7, 8, 10, 12, 14, 15],
+  },
+]
 
 function padAppFilterFrequency(amount) {
   return 260 + amount ** 2 * 7800
@@ -1920,6 +1943,9 @@ function ChordPadApp({ onOpenGroovebox }) {
   const [isRecordingLoop, setIsRecordingLoop] = useState(false)
   const [isLoopPlaying, setIsLoopPlaying] = useState(false)
   const [loopEvents, setLoopEvents] = useState([])
+  const [beatId, setBeatId] = useState('house')
+  const [isBeatPlaying, setIsBeatPlaying] = useState(false)
+  const [beatVolume, setBeatVolume] = useState(0.62)
 
   const audioContextRef = useRef(null)
   const masterGainRef = useRef(null)
@@ -1934,6 +1960,12 @@ function ChordPadApp({ onOpenGroovebox }) {
   const loopRecordingStartRef = useRef(0)
   const loopCycleTimerRef = useRef(null)
   const loopTimeoutsRef = useRef([])
+  const beatTimerRef = useRef(null)
+  const beatStepRef = useRef(0)
+  const beatPatternRef = useRef(PAD_APP_BEATS[0])
+  const beatVolumeRef = useRef(beatVolume)
+  const ensurePadAudioRef = useRef(null)
+  const playBeatStepRef = useRef(null)
 
   const root = PAD_APP_ROOTS.find((item) => item.id === rootId) ?? PAD_APP_ROOTS[0]
   const pads = buildPadAppPads(root.semitone, scaleId, octave, toneMode, variationId)
@@ -1943,6 +1975,7 @@ function ChordPadApp({ onOpenGroovebox }) {
   const instrument =
     PAD_APP_INSTRUMENTS.find((preset) => preset.id === instrumentId) ??
     PAD_APP_INSTRUMENTS[0]
+  const beat = PAD_APP_BEATS.find((item) => item.id === beatId) ?? PAD_APP_BEATS[0]
   const loopLengthSeconds = (60 / tempo) * 8
 
   const ensurePadAudio = async () => {
@@ -1997,6 +2030,10 @@ function ChordPadApp({ onOpenGroovebox }) {
 
     return audioContextRef.current
   }
+
+  useEffect(() => {
+    ensurePadAudioRef.current = ensurePadAudio
+  })
 
   useEffect(() => {
     keyPadRef.current = new Map(pads.map((pad) => [pad.keyName, pad]))
@@ -2151,6 +2188,132 @@ function ChordPadApp({ onOpenGroovebox }) {
 
     return { gain, filter, oscillators: [oscillator, sheen] }
   }
+
+  const playBeatHit = (kind, startAt = audioContextRef.current?.currentTime ?? 0) => {
+    const context = audioContextRef.current
+
+    if (!context || !masterGainRef.current) {
+      return
+    }
+
+    const level = beatVolumeRef.current
+    const gain = context.createGain()
+
+    gain.connect(masterGainRef.current)
+
+    if (kind === 'kick') {
+      const oscillator = context.createOscillator()
+      const click = context.createOscillator()
+      const clickGain = context.createGain()
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(118, startAt)
+      oscillator.frequency.exponentialRampToValueAtTime(42, startAt + 0.18)
+      gain.gain.setValueAtTime(0.0001, startAt)
+      gain.gain.exponentialRampToValueAtTime(0.82 * level, startAt + 0.012)
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.34)
+      oscillator.connect(gain)
+      oscillator.start(startAt)
+      oscillator.stop(startAt + 0.36)
+
+      click.type = 'triangle'
+      click.frequency.value = 180
+      clickGain.gain.setValueAtTime(0.16 * level, startAt)
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.035)
+      click.connect(clickGain)
+      clickGain.connect(masterGainRef.current)
+      click.start(startAt)
+      click.stop(startAt + 0.04)
+      return
+    }
+
+    if (kind === 'snare') {
+      const noiseBuffer = createNoiseBuffer(context)
+      const noise = context.createBufferSource()
+      const filter = context.createBiquadFilter()
+      const body = context.createOscillator()
+      const bodyGain = context.createGain()
+
+      noise.buffer = noiseBuffer
+      filter.type = 'bandpass'
+      filter.frequency.value = 1700
+      filter.Q.value = 0.65
+      gain.gain.setValueAtTime(0.0001, startAt)
+      gain.gain.exponentialRampToValueAtTime(0.4 * level, startAt + 0.008)
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.18)
+      noise.connect(filter)
+      filter.connect(gain)
+      noise.start(startAt)
+      noise.stop(startAt + 0.2)
+
+      body.type = 'triangle'
+      body.frequency.value = 180
+      bodyGain.gain.setValueAtTime(0.18 * level, startAt)
+      bodyGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.12)
+      body.connect(bodyGain)
+      bodyGain.connect(masterGainRef.current)
+      body.start(startAt)
+      body.stop(startAt + 0.13)
+      return
+    }
+
+    const noiseBuffer = createNoiseBuffer(context)
+    const noise = context.createBufferSource()
+    const filter = context.createBiquadFilter()
+
+    noise.buffer = noiseBuffer
+    filter.type = 'highpass'
+    filter.frequency.value = 7200
+    gain.gain.setValueAtTime(0.0001, startAt)
+    gain.gain.exponentialRampToValueAtTime(0.18 * level, startAt + 0.004)
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.065)
+    noise.connect(filter)
+    filter.connect(gain)
+    noise.start(startAt)
+    noise.stop(startAt + 0.08)
+  }
+
+  const playBeatStep = (stepIndex) => {
+    const pattern = beatPatternRef.current
+    const startAt = audioContextRef.current?.currentTime ?? 0
+
+    if (pattern.kick.includes(stepIndex)) {
+      playBeatHit('kick', startAt)
+    }
+
+    if (pattern.snare.includes(stepIndex)) {
+      playBeatHit('snare', startAt)
+    }
+
+    if (pattern.hat.includes(stepIndex)) {
+      playBeatHit('hat', startAt)
+    }
+  }
+
+  useEffect(() => {
+    playBeatStepRef.current = playBeatStep
+  })
+
+  const clearBeatTimers = useCallback(() => {
+    if (beatTimerRef.current) {
+      window.clearInterval(beatTimerRef.current)
+      beatTimerRef.current = null
+    }
+
+    beatStepRef.current = 0
+  }, [])
+
+  const startBeat = useCallback(async () => {
+    await ensurePadAudioRef.current?.()
+    clearBeatTimers()
+    beatStepRef.current = 0
+    playBeatStepRef.current?.(beatStepRef.current)
+    beatStepRef.current = 1
+    beatTimerRef.current = window.setInterval(() => {
+      playBeatStepRef.current?.(beatStepRef.current)
+      beatStepRef.current = (beatStepRef.current + 1) % STEP_COUNT
+    }, (60 / tempo / 4) * 1000)
+  }, [clearBeatTimers, tempo])
 
   const clearLoopTimers = useCallback(() => {
     if (loopCycleTimerRef.current) {
@@ -2353,6 +2516,34 @@ function ChordPadApp({ onOpenGroovebox }) {
       })),
     )
   }
+
+  const handleBeatToggle = () => {
+    if (isBeatPlaying) {
+      clearBeatTimers()
+      setIsBeatPlaying(false)
+      return
+    }
+
+    setIsBeatPlaying(true)
+  }
+
+  useEffect(() => {
+    beatPatternRef.current = beat
+  }, [beat])
+
+  useEffect(() => {
+    beatVolumeRef.current = beatVolume
+  }, [beatVolume])
+
+  useEffect(() => {
+    if (isBeatPlaying) {
+      void startBeat()
+    } else {
+      clearBeatTimers()
+    }
+  }, [beatId, clearBeatTimers, isBeatPlaying, startBeat, tempo])
+
+  useEffect(() => () => clearBeatTimers(), [clearBeatTimers])
 
   useEffect(() => () => clearLoopTimers(), [clearLoopTimers])
 
@@ -2611,6 +2802,67 @@ function ChordPadApp({ onOpenGroovebox }) {
           >
             Bass
           </button>
+
+          <div className="beat-control">
+            <div className="loop-control-top">
+              <span>Drums</span>
+              <strong>{beat.label}</strong>
+            </div>
+
+            <div className="beat-buttons">
+              {PAD_APP_BEATS.map((pattern) => (
+                <button
+                  key={pattern.id}
+                  type="button"
+                  className={beatId === pattern.id ? 'active' : ''}
+                  onClick={() => setBeatId(pattern.id)}
+                >
+                  {pattern.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="loop-buttons">
+              <button
+                type="button"
+                className={isBeatPlaying ? 'active' : ''}
+                onClick={handleBeatToggle}
+              >
+                {isBeatPlaying ? 'Stop' : 'Play'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await ensurePadAudio()
+                  playBeatHit('kick')
+                }}
+              >
+                Kick
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await ensurePadAudio()
+                  playBeatHit('snare')
+                }}
+              >
+                Snare
+              </button>
+            </div>
+
+            <label className="beat-volume">
+              <span>Vol</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={beatVolume}
+                onChange={(event) => setBeatVolume(Number(event.target.value))}
+              />
+              <strong>{Math.round(beatVolume * 100)}</strong>
+            </label>
+          </div>
 
           <div className="loop-control">
             <div className="loop-control-top">
