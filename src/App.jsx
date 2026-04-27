@@ -20,6 +20,88 @@ const DEFAULT_LANE_VOLUME = 1
 const USER_PRESETS_STORAGE_KEY = 'groovebox:user-presets:v1'
 const DISTORTION_CURVE_SAMPLES = 4096
 const MAX_DISTORTION_CURVE_CACHE_SIZE = 80
+const DEFAULT_SOUND_MACROS = {
+  tone: 0.58,
+  punch: 0.62,
+  space: 0.26,
+  motion: 0.18,
+  width: 0.52,
+}
+const EFFECT_SCENES = [
+  {
+    id: 'dry',
+    label: 'Dry',
+    dirt: 0.78,
+    space: 0.18,
+    motion: 0.7,
+    width: 0.76,
+    lows: 1,
+    body: 0,
+    air: 1.2,
+    compressor: 0.9,
+  },
+  {
+    id: 'club',
+    label: 'Club',
+    dirt: 1.08,
+    space: 0.46,
+    motion: 0.95,
+    width: 0.86,
+    lows: 2.6,
+    body: 0.9,
+    air: 0.8,
+    compressor: 1.25,
+  },
+  {
+    id: 'tape',
+    label: 'Tape',
+    dirt: 1.36,
+    space: 0.32,
+    motion: 0.82,
+    width: 0.68,
+    lows: 1.8,
+    body: 1.4,
+    air: -1.1,
+    compressor: 1.05,
+  },
+  {
+    id: 'dub',
+    label: 'Dub',
+    dirt: 0.96,
+    space: 1.28,
+    motion: 1.12,
+    width: 1,
+    lows: 2,
+    body: -0.4,
+    air: 0.4,
+    compressor: 1,
+  },
+  {
+    id: 'wide',
+    label: 'Wide',
+    dirt: 0.88,
+    space: 0.68,
+    motion: 1.45,
+    width: 1.42,
+    lows: 0.8,
+    body: -0.3,
+    air: 1.8,
+    compressor: 0.95,
+  },
+  {
+    id: 'broken',
+    label: 'Broken',
+    dirt: 1.72,
+    space: 0.52,
+    motion: 1.58,
+    width: 0.92,
+    lows: 1,
+    body: 1.8,
+    air: -0.2,
+    compressor: 1.45,
+  },
+]
+const DEFAULT_EFFECT_SCENE_ID = 'club'
 const AUDIO_PROFILES = {
   standard: {
     latencyHint: 'interactive',
@@ -1713,6 +1795,12 @@ function createUserPresetSnapshot(name, state) {
     bpm: state.bpm,
     drive: state.drive,
     volume: state.volume,
+    tone: state.tone,
+    punch: state.punch,
+    space: state.space,
+    motion: state.motion,
+    width: state.width,
+    effectSceneId: state.effectSceneId,
     patternLength: state.patternLength,
     selectedScaleId: state.selectedScaleId,
     selectedPadId: state.selectedPadId,
@@ -1863,6 +1951,26 @@ function findPreset(presetId) {
 
 function presetOptionsFor(kind) {
   return SYNTH_PRESETS.filter((preset) => preset.role === kind)
+}
+
+function findEffectScene(sceneId) {
+  return (
+    EFFECT_SCENES.find((scene) => scene.id === sceneId) ??
+    EFFECT_SCENES.find((scene) => scene.id === DEFAULT_EFFECT_SCENE_ID) ??
+    EFFECT_SCENES[0]
+  )
+}
+
+function createMasterSaturationCurve(amount) {
+  const curve = new Float32Array(DISTORTION_CURVE_SAMPLES)
+  const drive = 1 + Math.max(0, Math.min(amount, 1.8)) * 2.2
+
+  for (let index = 0; index < curve.length; index += 1) {
+    const x = (index / (curve.length - 1)) * 2 - 1
+    curve[index] = Math.tanh(x * drive) / Math.tanh(drive)
+  }
+
+  return curve
 }
 
 function createNoiseBuffer(context) {
@@ -3253,6 +3361,12 @@ function GrooveboxApp({ onOpenChordPad }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [drive, setDrive] = useState(0.32)
   const [volume, setVolume] = useState(0.62)
+  const [tone, setTone] = useState(DEFAULT_SOUND_MACROS.tone)
+  const [punch, setPunch] = useState(DEFAULT_SOUND_MACROS.punch)
+  const [space, setSpace] = useState(DEFAULT_SOUND_MACROS.space)
+  const [motion, setMotion] = useState(DEFAULT_SOUND_MACROS.motion)
+  const [width, setWidth] = useState(DEFAULT_SOUND_MACROS.width)
+  const [effectSceneId, setEffectSceneId] = useState(DEFAULT_EFFECT_SCENE_ID)
   const [isNotePaintMode, setIsNotePaintMode] = useState(false)
   const [selectedScaleId, setSelectedScaleId] = useState(SCALE_OPTIONS[0].id)
   const [userPresets, setUserPresets] = useState(readUserPresets)
@@ -3270,6 +3384,7 @@ function GrooveboxApp({ onOpenChordPad }) {
 
   const audioContextRef = useRef(null)
   const masterGainRef = useRef(null)
+  const masterBusRef = useRef(null)
   const noiseBufferRef = useRef(null)
   const audioProfileRef = useRef(getAudioProfile())
   const distortionCurveCacheRef = useRef(createDistortionCurveCache())
@@ -3333,6 +3448,41 @@ function GrooveboxApp({ onOpenChordPad }) {
     ),
   )
   const patternStepCount = patternLength
+  const activeEffectScene = findEffectScene(effectSceneId)
+  const soundMacros = {
+    tone,
+    punch,
+    space: Math.min(1, space * activeEffectScene.space),
+    motion: Math.min(1, motion * activeEffectScene.motion),
+    width: Math.min(1, width * activeEffectScene.width),
+    dirt: Math.min(1, drive * activeEffectScene.dirt),
+  }
+
+  const applyMasterBusSettings = useCallback(() => {
+    const context = audioContextRef.current
+    const masterBus = masterBusRef.current
+
+    if (!context || !masterBus) {
+      return
+    }
+
+    const scene = findEffectScene(effectSceneId)
+    const now = context.currentTime
+    const macroDirt = Math.min(1, drive * scene.dirt)
+    const macroTone = tone * 2 - 1
+    const macroPunch = punch
+
+    masterBus.input.gain.setTargetAtTime(volume, now, 0.02)
+    masterBus.color.curve = createMasterSaturationCurve(macroDirt)
+    masterBus.low.gain.setTargetAtTime(scene.lows + (1 - tone) * 1.8, now, 0.025)
+    masterBus.body.gain.setTargetAtTime(scene.body + macroPunch * 1.2, now, 0.025)
+    masterBus.air.gain.setTargetAtTime(scene.air + macroTone * 2.4, now, 0.025)
+    masterBus.compressor.threshold.setTargetAtTime(-20 + macroPunch * 4, now, 0.025)
+    masterBus.compressor.ratio.setTargetAtTime(3.2 + macroPunch * 3 * scene.compressor, now, 0.025)
+    masterBus.compressor.attack.setTargetAtTime(0.012 - macroPunch * 0.009, now, 0.025)
+    masterBus.compressor.release.setTargetAtTime(0.26 - macroPunch * 0.11, now, 0.025)
+    masterBus.limiter.threshold.setTargetAtTime(-0.8, now, 0.02)
+  }, [drive, effectSceneId, punch, tone, volume])
 
   const ensureAudio = async () => {
     if (!audioContextRef.current) {
@@ -3346,21 +3496,53 @@ function GrooveboxApp({ onOpenChordPad }) {
         latencyHint: audioProfileRef.current.latencyHint,
       })
       const masterGain = context.createGain()
+      const color = context.createWaveShaper()
+      const low = context.createBiquadFilter()
+      const body = context.createBiquadFilter()
+      const air = context.createBiquadFilter()
       const compressor = context.createDynamicsCompressor()
+      const limiter = context.createDynamicsCompressor()
 
-      compressor.threshold.value = -18
+      low.type = 'lowshelf'
+      low.frequency.value = 120
+      body.type = 'peaking'
+      body.frequency.value = 760
+      body.Q.value = 0.9
+      air.type = 'highshelf'
+      air.frequency.value = 5200
+
+      color.oversample = audioProfileRef.current.distortionOversample
+
       compressor.knee.value = 18
-      compressor.ratio.value = 4
-      compressor.attack.value = 0.003
-      compressor.release.value = 0.22
+      limiter.threshold.value = -0.8
+      limiter.knee.value = 0
+      limiter.ratio.value = 20
+      limiter.attack.value = 0.001
+      limiter.release.value = 0.08
 
       masterGain.gain.value = volume
-      masterGain.connect(compressor)
-      compressor.connect(context.destination)
+      masterGain
+        .connect(color)
+        .connect(low)
+        .connect(body)
+        .connect(air)
+        .connect(compressor)
+        .connect(limiter)
+        .connect(context.destination)
 
       audioContextRef.current = context
       masterGainRef.current = masterGain
+      masterBusRef.current = {
+        input: masterGain,
+        color,
+        low,
+        body,
+        air,
+        compressor,
+        limiter,
+      }
       noiseBufferRef.current = createNoiseBuffer(context)
+      applyMasterBusSettings()
     }
 
     if (audioContextRef.current.state !== 'running') {
@@ -3375,14 +3557,8 @@ function GrooveboxApp({ onOpenChordPad }) {
   }
 
   useEffect(() => {
-    if (masterGainRef.current && audioContextRef.current) {
-      masterGainRef.current.gain.setTargetAtTime(
-        volume,
-        audioContextRef.current.currentTime,
-        0.02,
-      )
-    }
-  }, [volume])
+    applyMasterBusSettings()
+  }, [applyMasterBusSettings])
 
   useEffect(() => {
     bassTracksRef.current = bassTracks
@@ -3511,7 +3687,12 @@ function GrooveboxApp({ onOpenChordPad }) {
 
   const getStepDuration = () => 60 / bpm / STEP_INTERVAL_DIVISOR
 
-  const playSynthVoice = (noteId, presetId, scheduledTime, laneVolume = DEFAULT_LANE_VOLUME) => {
+  const playSynthVoice = (
+    noteId,
+    presetId,
+    scheduledTime,
+    laneVolume = DEFAULT_LANE_VOLUME,
+  ) => {
     const note = findNote(noteId)
     const preset = findPreset(presetId)
     const context = audioContextRef.current
@@ -3523,7 +3704,17 @@ function GrooveboxApp({ onOpenChordPad }) {
     }
 
     const startTime = scheduledTime ?? context.currentTime + 0.01
-    const duration = Math.max(getStepDuration() * 0.95, preset.decay)
+    const isBassVoice = preset.role === 'bass'
+    const macroTone = soundMacros.tone
+    const macroPunch = soundMacros.punch
+    const macroSpace = soundMacros.space
+    const macroMotion = soundMacros.motion
+    const macroWidth = soundMacros.width
+    const macroDirt = soundMacros.dirt
+    const duration = Math.max(
+      getStepDuration() * (0.72 + macroPunch * 0.34),
+      preset.decay * (1.12 - macroPunch * 0.28),
+    )
     const envelope = context.createGain()
     const filter = context.createBiquadFilter()
     const shaper = context.createWaveShaper()
@@ -3532,21 +3723,25 @@ function GrooveboxApp({ onOpenChordPad }) {
     const cleanupNodes = []
 
     filter.type = preset.filterType
-    filter.frequency.setValueAtTime(preset.cutoff, startTime)
+    const cutoff = Math.max(90, preset.cutoff * (0.55 + macroTone * 1.25))
+    const envelopeAmount = preset.envAmount * (0.55 + macroPunch * 0.9)
+    const filterFloor = Math.max(120, cutoff * preset.filterFloorRatio * (0.86 + macroTone * 0.2))
+
+    filter.frequency.setValueAtTime(cutoff, startTime)
     filter.frequency.linearRampToValueAtTime(
-      preset.cutoff + preset.envAmount,
+      Math.min(18000, cutoff + envelopeAmount),
       startTime + 0.025,
     )
     filter.frequency.exponentialRampToValueAtTime(
-      Math.max(180, preset.cutoff * preset.filterFloorRatio),
+      filterFloor,
       startTime + duration,
     )
-    filter.Q.setValueAtTime(preset.resonance, startTime)
+    filter.Q.setValueAtTime(preset.resonance * (0.82 + macroTone * 0.34), startTime)
 
     envelope.gain.setValueAtTime(0.0001, startTime)
     envelope.gain.linearRampToValueAtTime(
-      preset.gain * outputLevel,
-      startTime + preset.attack,
+      preset.gain * outputLevel * (0.86 + macroPunch * 0.22),
+      startTime + Math.max(0.002, preset.attack * (1.25 - macroPunch * 0.55)),
     )
     envelope.gain.exponentialRampToValueAtTime(
       Math.max(0.0001, preset.gain * preset.sustainLevel * outputLevel),
@@ -3554,11 +3749,12 @@ function GrooveboxApp({ onOpenChordPad }) {
     )
     envelope.gain.exponentialRampToValueAtTime(0.0001, startTime + duration)
 
-    shaper.curve = distortionCurveCacheRef.current.get(drive * preset.driveAmount)
+    shaper.curve = distortionCurveCacheRef.current.get(macroDirt * preset.driveAmount)
     shaper.oversample = audioProfileRef.current.distortionOversample
 
     if (panner) {
-      panner.pan.setValueAtTime(preset.pan, startTime)
+      const panWidth = isBassVoice ? Math.min(macroWidth, 0.25) : macroWidth
+      panner.pan.setValueAtTime((preset.pan ?? 0) * (0.35 + panWidth * 1.5), startTime)
     }
 
     const mainOscillator = context.createOscillator()
@@ -3568,7 +3764,7 @@ function GrooveboxApp({ onOpenChordPad }) {
     const detunedOscillator = context.createOscillator()
     detunedOscillator.type = preset.waveform
     detunedOscillator.frequency.setValueAtTime(note.frequency, startTime)
-    detunedOscillator.detune.setValueAtTime(preset.detune, startTime)
+    detunedOscillator.detune.setValueAtTime(preset.detune * (0.7 + macroMotion * 0.75), startTime)
 
     const harmonicOscillator = context.createOscillator()
     harmonicOscillator.type = preset.harmonicWaveform
@@ -3580,7 +3776,10 @@ function GrooveboxApp({ onOpenChordPad }) {
 
     const subOscillator = context.createOscillator()
     subOscillator.type = preset.subWaveform
-    subOscillator.frequency.setValueAtTime(note.frequency / 2, startTime)
+    subOscillator.frequency.setValueAtTime(
+      note.frequency / 2,
+      startTime,
+    )
 
     if (preset.vibratoDepth > 0 && preset.vibratoRate > 0) {
       const vibrato = context.createOscillator()
@@ -3590,7 +3789,7 @@ function GrooveboxApp({ onOpenChordPad }) {
       vibrato.frequency.setValueAtTime(preset.vibratoRate, startTime)
       vibratoGain.gain.setValueAtTime(0, startTime)
       vibratoGain.gain.linearRampToValueAtTime(
-        preset.vibratoDepth,
+        preset.vibratoDepth * (0.45 + macroMotion * 1.3),
         startTime + Math.min(0.08, duration * 0.35),
       )
 
@@ -3605,7 +3804,7 @@ function GrooveboxApp({ onOpenChordPad }) {
     }
 
     const detuneGain = context.createGain()
-    detuneGain.gain.value = preset.detuneLevel
+    detuneGain.gain.value = preset.detuneLevel * (0.75 + macroMotion * 0.7)
 
     const harmonicGain = context.createGain()
     harmonicGain.gain.value = preset.harmonicLevel
@@ -3643,14 +3842,20 @@ function GrooveboxApp({ onOpenChordPad }) {
       envelope.connect(masterGain)
     }
 
-    if (preset.delayLevel > 0) {
+    if (preset.delayLevel > 0 || macroSpace > 0.04) {
       const delay = context.createDelay(1)
       const feedback = context.createGain()
       const delayWet = context.createGain()
 
       delay.delayTime.setValueAtTime(preset.delayTime, startTime)
-      feedback.gain.setValueAtTime(preset.delayFeedback, startTime)
-      delayWet.gain.setValueAtTime(preset.delayLevel, startTime)
+      feedback.gain.setValueAtTime(
+        Math.min(0.72, preset.delayFeedback + macroSpace * 0.18),
+        startTime,
+      )
+      delayWet.gain.setValueAtTime(
+        Math.min(0.42, preset.delayLevel + macroSpace * (isBassVoice ? 0.045 : 0.16)),
+        startTime,
+      )
 
       envelope.connect(delay)
       delay.connect(feedback).connect(delay)
@@ -4704,6 +4909,12 @@ function GrooveboxApp({ onOpenChordPad }) {
       patternLength,
       drive,
       volume,
+      tone,
+      punch,
+      space,
+      motion,
+      width,
+      effectSceneId,
       selectedScaleId,
       selectedPadId,
       chordPresetId,
@@ -4748,6 +4959,12 @@ function GrooveboxApp({ onOpenChordPad }) {
     setPatternLength(loaded.patternLength ?? STEP_COUNT)
     setDrive(loaded.drive ?? drive)
     setVolume(loaded.volume ?? volume)
+    setTone(loaded.tone ?? DEFAULT_SOUND_MACROS.tone)
+    setPunch(loaded.punch ?? DEFAULT_SOUND_MACROS.punch)
+    setSpace(loaded.space ?? DEFAULT_SOUND_MACROS.space)
+    setMotion(loaded.motion ?? DEFAULT_SOUND_MACROS.motion)
+    setWidth(loaded.width ?? DEFAULT_SOUND_MACROS.width)
+    setEffectSceneId(loaded.effectSceneId ?? DEFAULT_EFFECT_SCENE_ID)
     setSelectedScaleId(loaded.selectedScaleId ?? SCALE_OPTIONS[0].id)
     setSelectedPadId(loaded.selectedPadId ?? 'c')
     setChordPresetId(loaded.chordPresetId ?? 'cloud')
@@ -5373,7 +5590,7 @@ function GrooveboxApp({ onOpenChordPad }) {
           </label>
 
           <label className="control-card">
-            <span>Drive</span>
+            <span>Dirt</span>
             <div className="control-stack">
               <input
                 type="range"
@@ -5386,6 +5603,98 @@ function GrooveboxApp({ onOpenChordPad }) {
               <strong>{Math.round(drive * 100)}%</strong>
             </div>
           </label>
+
+          <label className="control-card">
+            <span>Tone</span>
+            <div className="control-stack">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={tone}
+                onChange={(event) => setTone(Number(event.target.value))}
+              />
+              <strong>{Math.round(tone * 100)}%</strong>
+            </div>
+          </label>
+
+          <label className="control-card">
+            <span>Punch</span>
+            <div className="control-stack">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={punch}
+                onChange={(event) => setPunch(Number(event.target.value))}
+              />
+              <strong>{Math.round(punch * 100)}%</strong>
+            </div>
+          </label>
+
+          <label className="control-card">
+            <span>Space</span>
+            <div className="control-stack">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={space}
+                onChange={(event) => setSpace(Number(event.target.value))}
+              />
+              <strong>{Math.round(space * 100)}%</strong>
+            </div>
+          </label>
+
+          <label className="control-card">
+            <span>Motion</span>
+            <div className="control-stack">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={motion}
+                onChange={(event) => setMotion(Number(event.target.value))}
+              />
+              <strong>{Math.round(motion * 100)}%</strong>
+            </div>
+          </label>
+
+          <label className="control-card">
+            <span>Width</span>
+            <div className="control-stack">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={width}
+                onChange={(event) => setWidth(Number(event.target.value))}
+              />
+              <strong>{Math.round(width * 100)}%</strong>
+            </div>
+          </label>
+
+          <div className="control-card fx-scene-card">
+            <span>FX Scene</span>
+            <div className="fx-scene-buttons">
+              {EFFECT_SCENES.map((scene) => (
+                <button
+                  key={scene.id}
+                  type="button"
+                  className={effectSceneId === scene.id ? 'active' : ''}
+                  onClick={() => setEffectSceneId(scene.id)}
+                  aria-pressed={effectSceneId === scene.id}
+                >
+                  {scene.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <label className="control-card">
             <span>Volume</span>
