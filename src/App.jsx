@@ -3,6 +3,7 @@ import {
   GROOVE_DRUM_LOOP_PRESETS,
   loadGrooveDrumLoop,
 } from './midiLoops'
+import noteGameSampleUrl from './assets/sampler-snippets/01_shapes_160_bpm_01.wav'
 import './App.css'
 
 const SAMPLER_SAMPLE_URLS = import.meta.glob('./assets/sampler-snippets/*.wav', {
@@ -230,6 +231,7 @@ const NOTE_GAME_GATE_X = 72
 const NOTE_GAME_NOTE_SPACING = 17
 const NOTE_GAME_HARMONY_MIN = 38
 const NOTE_GAME_HARMONY_MAX = 57
+const NOTE_GAME_SAMPLE_ROOT_NOTE = 60
 
 function noteGameLabel(noteNumber) {
   const note = NOTE_NAMES[noteNumber % 12]
@@ -247,10 +249,6 @@ function noteGameLanePercent(noteNumber) {
 
 function noteGameHarmonyLanePercent(noteNumber) {
   return 86 - ((noteNumber - NOTE_GAME_HARMONY_MIN) / (NOTE_GAME_HARMONY_MAX - NOTE_GAME_HARMONY_MIN)) * 30
-}
-
-function noteGameFrequency(noteNumber) {
-  return 440 * 2 ** ((noteNumber - 69) / 12)
 }
 
 const PAD_OPTIONS = NOTE_NAMES.map((note, index) => ({
@@ -486,6 +484,11 @@ const SAMPLER_LANES = [
   { id: 'middle', label: 'Normal', pitch: 1, color: '#2ec4b6' },
   { id: 'low', label: 'Low', pitch: 0.74, color: '#3a86ff' },
 ]
+const SAMPLER_TOOL_MIME_TYPE = 'application/x-sampler-tool'
+const SAMPLER_DEFAULT_REPEAT_ID = 'once'
+const SAMPLER_DEFAULT_CHOP_ID = 'full'
+const SAMPLER_DEFAULT_GATE_ID = 'clip'
+const SAMPLER_DEFAULT_FADE_ID = 'punch'
 const SAMPLER_COLORS = [
   '#ff4d6d',
   '#ffbe0b',
@@ -496,6 +499,81 @@ const SAMPLER_COLORS = [
   '#06d6a0',
   '#f15bb5',
 ]
+const SAMPLER_REPEAT_TOOLS = [
+  { id: 'once', label: '•', offsets: [0], color: '#ff4d6d' },
+  { id: 'double', label: '••', offsets: [0, 0.5], color: '#ffbe0b' },
+  { id: 'quad', label: '••••', offsets: [0, 0.25, 0.5, 0.75], color: '#2ec4b6' },
+  { id: 'skip-roll', label: '• ••', offsets: [0, 0.58, 0.78], color: '#3a86ff' },
+  { id: 'roll-skip', label: '•• •', offsets: [0, 0.2, 0.7], color: '#8338ec' },
+  { id: 'skip-burst', label: '• • ••', offsets: [0, 0.34, 0.66, 0.84], color: '#fb8500' },
+]
+const SAMPLER_CHOP_TOOLS = [
+  { id: 'start', label: 'Start', start: 0, length: 1 / 3, color: '#ff4d6d' },
+  { id: 'middle', label: 'Middle', start: 1 / 3, length: 1 / 3, color: '#ffbe0b' },
+  { id: 'end', label: 'End', start: 2 / 3, length: 1 / 3, color: '#2ec4b6' },
+  { id: 'random', label: 'Random', start: 'random', length: 1 / 3, color: '#3a86ff' },
+]
+const SAMPLER_GATE_TOOLS = [
+  { id: 'tap', label: 'Tap', length: 0.24, color: '#8338ec' },
+  { id: 'clip', label: 'Clip', length: 0.58, color: '#06d6a0' },
+  { id: 'hold', label: 'Hold', length: 1, color: '#f15bb5' },
+]
+const SAMPLER_FADE_TOOLS = [
+  { id: 'punch', label: 'Punch', attack: 0.006, releaseStart: 0.72, release: 0.035, color: '#fb5607' },
+  { id: 'soft', label: 'Soft', attack: 0.045, releaseStart: 0.62, release: 0.09, color: '#2ec4b6' },
+  { id: 'swell', label: 'Swell', attack: 0.18, releaseStart: 0.78, release: 0.08, color: '#3a86ff' },
+]
+const SAMPLER_TOOL_GROUPS = [
+  { id: 'chop', label: 'Chop', tools: SAMPLER_CHOP_TOOLS },
+  { id: 'repeat', label: 'Repeat', tools: SAMPLER_REPEAT_TOOLS },
+  { id: 'gate', label: 'Gate', tools: SAMPLER_GATE_TOOLS },
+  { id: 'fade', label: 'Fade', tools: SAMPLER_FADE_TOOLS },
+]
+
+function getSamplerTool(groupId, toolId) {
+  return SAMPLER_TOOL_GROUPS.find((group) => group.id === groupId)?.tools.find(
+    (tool) => tool.id === toolId,
+  )
+}
+
+function samplerUnitValue(value) {
+  let hash = 2166136261
+
+  for (const character of value) {
+    hash ^= character.charCodeAt(0)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return (hash >>> 0) / 4294967296
+}
+
+function createSamplerSlot(pad, laneIndex, stepIndex, existingSlot) {
+  return {
+    id: `${pad.id}-${laneIndex}-${stepIndex}-${Date.now()}`,
+    padId: pad.id,
+    repeatId: existingSlot?.repeatId ?? SAMPLER_DEFAULT_REPEAT_ID,
+    chopId: existingSlot?.chopId ?? SAMPLER_DEFAULT_CHOP_ID,
+    gateId: existingSlot?.gateId ?? SAMPLER_DEFAULT_GATE_ID,
+    fadeId: existingSlot?.fadeId ?? SAMPLER_DEFAULT_FADE_ID,
+  }
+}
+
+function samplerSlotLabel(slot) {
+  const repeatTool =
+    getSamplerTool('repeat', slot.repeatId ?? SAMPLER_DEFAULT_REPEAT_ID) ?? SAMPLER_REPEAT_TOOLS[0]
+  const chopTool = getSamplerTool('chop', slot.chopId)
+  const gateTool = getSamplerTool('gate', slot.gateId)
+  const fadeTool = getSamplerTool('fade', slot.fadeId)
+
+  return [
+    repeatTool.label,
+    chopTool && chopTool.id !== SAMPLER_DEFAULT_CHOP_ID ? chopTool.label[0] : '',
+    gateTool && gateTool.id !== SAMPLER_DEFAULT_GATE_ID ? gateTool.label[0] : '',
+    fadeTool && fadeTool.id !== SAMPLER_DEFAULT_FADE_ID ? fadeTool.label[0] : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
 
 function createSamplerSamples() {
   return Object.entries(SAMPLER_SAMPLE_URLS)
@@ -3500,6 +3578,8 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
   const [grid, setGrid] = useState(createEmptySamplerGrid)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [selectedPadId, setSelectedPadId] = useState(samples[0]?.id ?? null)
+  const [activeSamplerTool, setActiveSamplerTool] = useState(null)
+  const [samplerCursor, setSamplerCursor] = useState({ x: 0, y: 0, visible: false })
   const [tempo, setTempo] = useState(samples[0]?.bpm ?? 160)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLooping, setIsLooping] = useState(true)
@@ -3517,6 +3597,9 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
     selectedSlot && grid[selectedSlot.laneIndex]?.[selectedSlot.stepIndex]
       ? grid[selectedSlot.laneIndex][selectedSlot.stepIndex]
       : null
+  const activeSamplerToolDefinition = activeSamplerTool
+    ? getSamplerTool(activeSamplerTool.groupId, activeSamplerTool.toolId)
+    : null
   const stepSeconds = 60 / tempo
 
   const ensureSamplerAudio = async () => {
@@ -3568,6 +3651,7 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
     lane = SAMPLER_LANES[1],
     startAt = audioContextRef.current?.currentTime ?? 0,
     maxDuration = 2.2,
+    slot,
   ) => {
     const context = await ensureSamplerAudio()
     const buffer = await loadSampleBuffer(pad)
@@ -3578,15 +3662,27 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
 
     const source = context.createBufferSource()
     const gain = context.createGain()
-    const chunkStart = buffer.duration * pad.chunk.start
-    const chunkLength = buffer.duration * pad.chunk.length
-    const duration = Math.max(0.05, Math.min(chunkLength, maxDuration))
+    const chopTool = getSamplerTool('chop', slot?.chopId)
+    const gateTool =
+      getSamplerTool('gate', slot?.gateId ?? SAMPLER_DEFAULT_GATE_ID) ?? SAMPLER_GATE_TOOLS[1]
+    const fadeTool =
+      getSamplerTool('fade', slot?.fadeId ?? SAMPLER_DEFAULT_FADE_ID) ?? SAMPLER_FADE_TOOLS[0]
+    const chopStart =
+      chopTool?.start === 'random'
+        ? samplerUnitValue(slot?.id ?? pad.id) * Math.max(0, 1 - (chopTool.length ?? 1 / 3))
+        : chopTool?.start ?? 0
+    const chopLength = chopTool?.length ?? 1
+    const chunkStart = buffer.duration * (pad.chunk.start + pad.chunk.length * chopStart)
+    const chunkLength = buffer.duration * pad.chunk.length * chopLength
+    const duration = Math.max(0.05, Math.min(chunkLength, maxDuration) * gateTool.length)
+    const attack = Math.min(fadeTool.attack, duration * 0.6)
+    const releaseStart = startAt + duration * fadeTool.releaseStart
 
     source.buffer = buffer
     source.playbackRate.value = lane.pitch
     gain.gain.setValueAtTime(0.0001, startAt)
-    gain.gain.exponentialRampToValueAtTime(0.86, startAt + 0.01)
-    gain.gain.setTargetAtTime(0.0001, startAt + duration * 0.82, 0.04)
+    gain.gain.exponentialRampToValueAtTime(0.86, startAt + attack)
+    gain.gain.setTargetAtTime(0.0001, releaseStart, fadeTool.release)
     source.connect(gain)
     gain.connect(masterGainRef.current)
     source.start(startAt, chunkStart, duration)
@@ -3617,15 +3713,18 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
         return
       }
 
-      const repeat = Math.max(1, slot.repeat)
-      const repeatGap = stepSeconds / repeat
+      const repeatTool =
+        getSamplerTool('repeat', slot.repeatId ?? SAMPLER_DEFAULT_REPEAT_ID) ??
+        SAMPLER_REPEAT_TOOLS[0]
+      const repeatGap = stepSeconds / Math.max(1, repeatTool.offsets.length)
 
-      Array.from({ length: repeat }, (_, repeatIndex) => {
+      repeatTool.offsets.forEach((offset) => {
         void playSamplerPad(
           pad,
           lane,
-          context.currentTime + repeatIndex * repeatGap,
+          context.currentTime + offset * stepSeconds,
           repeatGap * 0.82,
+          slot,
         )
       })
     })
@@ -3678,9 +3777,7 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
         laneSlots.map((slot, currentStepIndex) =>
           currentLaneIndex === laneIndex && currentStepIndex === stepIndex
             ? {
-                id: `${pad.id}-${laneIndex}-${stepIndex}-${Date.now()}`,
-                padId: pad.id,
-                repeat: slot?.repeat ?? 1,
+                ...createSamplerSlot(pad, laneIndex, stepIndex, slot),
               }
             : slot,
         ),
@@ -3689,20 +3786,52 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
     setSelectedSlot({ laneIndex, stepIndex })
   }
 
-  const updateSelectedRepeat = (repeat) => {
-    if (!selectedSlot) {
+  const applySamplerToolToSlot = (laneIndex, stepIndex, groupId, toolId) => {
+    if (!grid[laneIndex]?.[stepIndex]) {
       return
     }
 
     setGrid((currentGrid) =>
-      currentGrid.map((laneSlots, laneIndex) =>
-        laneSlots.map((slot, stepIndex) =>
-          laneIndex === selectedSlot.laneIndex && stepIndex === selectedSlot.stepIndex && slot
-            ? { ...slot, repeat }
+      currentGrid.map((laneSlots, currentLaneIndex) =>
+        laneSlots.map((slot, currentStepIndex) =>
+          currentLaneIndex === laneIndex && currentStepIndex === stepIndex && slot
+            ? { ...slot, [`${groupId}Id`]: toolId }
             : slot,
         ),
       ),
     )
+    setSelectedSlot({ laneIndex, stepIndex })
+  }
+
+  const handleSamplerToolDragStart = (event, groupId, toolId) => {
+    event.dataTransfer.setData(SAMPLER_TOOL_MIME_TYPE, JSON.stringify({ groupId, toolId }))
+    event.dataTransfer.effectAllowed = 'copy'
+  }
+
+  const handleSamplerToolSelect = (groupId, toolId) => {
+    setActiveSamplerTool((currentTool) =>
+      currentTool?.groupId === groupId && currentTool?.toolId === toolId
+        ? null
+        : { groupId, toolId },
+    )
+  }
+
+  const handleSamplerSlotDrop = (event, laneIndex, stepIndex) => {
+    event.preventDefault()
+    const toolData = event.dataTransfer.getData(SAMPLER_TOOL_MIME_TYPE)
+
+    if (toolData) {
+      try {
+        const { groupId, toolId } = JSON.parse(toolData)
+        applySamplerToolToSlot(laneIndex, stepIndex, groupId, toolId)
+      } catch {
+        return
+      }
+
+      return
+    }
+
+    placePad(laneIndex, stepIndex, event.dataTransfer.getData('text/plain'))
   }
 
   const clearSelectedSlot = () => {
@@ -3775,7 +3904,29 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
   useEffect(() => () => stopPlayback(), [stopPlayback])
 
   return (
-    <main className="sampler-shell">
+    <main
+      className={`sampler-shell ${activeSamplerToolDefinition ? 'tool-armed' : ''}`}
+      onPointerMove={(event) =>
+        setSamplerCursor({
+          x: event.clientX,
+          y: event.clientY,
+          visible: true,
+        })
+      }
+      onPointerLeave={() => setSamplerCursor((cursor) => ({ ...cursor, visible: false }))}
+      style={{ '--active-tool-color': activeSamplerToolDefinition?.color ?? '#0f172a' }}
+    >
+      {activeSamplerToolDefinition ? (
+        <span
+          className={`sampler-cursor-dot ${samplerCursor.visible ? 'visible' : ''}`}
+          style={{
+            left: samplerCursor.x,
+            top: samplerCursor.y,
+            '--active-tool-color': activeSamplerToolDefinition.color,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
       <header className="sampler-hero">
         <div>
           <h1>Sampler</h1>
@@ -3856,6 +4007,16 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
                     style={{ '--sample-color': pad?.color ?? lane.color }}
                     onClick={() => {
                       if (pad) {
+                        if (activeSamplerTool) {
+                          applySamplerToolToSlot(
+                            laneIndex,
+                            stepIndex,
+                            activeSamplerTool.groupId,
+                            activeSamplerTool.toolId,
+                          )
+                          return
+                        }
+
                         clearSamplerSlot(laneIndex, stepIndex)
                         return
                       }
@@ -3867,16 +4028,13 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
                       }
                     }}
                     onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      placePad(laneIndex, stepIndex, event.dataTransfer.getData('text/plain'))
-                    }}
-                    aria-label={`${lane.label} step ${stepIndex + 1}${pad ? ', remove note' : ', add note'}`}
+                    onDrop={(event) => handleSamplerSlotDrop(event, laneIndex, stepIndex)}
+                    aria-label={`${lane.label} step ${stepIndex + 1}${pad ? ', modify or remove note' : ', add note'}`}
                   >
                     {pad ? (
                       <>
                         <strong>{pad.label}</strong>
-                        <span>{'•'.repeat(slot.repeat)}</span>
+                        <span>{samplerSlotLabel(slot)}</span>
                       </>
                     ) : (
                       <span>+</span>
@@ -3919,21 +4077,36 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
             <strong>{tempo}</strong>
           </label>
 
-          <div className="sampler-repeat-box">
-            <span>Repeat</span>
-            <div>
-              {[1, 2, 4].map((repeat) => (
-                <button
-                  key={repeat}
-                  type="button"
-                  className={selectedPlacedSlot?.repeat === repeat ? 'active' : ''}
-                  onClick={() => updateSelectedRepeat(repeat)}
-                  disabled={!selectedPlacedSlot}
-                >
-                  {'•'.repeat(repeat)}
-                </button>
-              ))}
-            </div>
+          <div className="sampler-toolbox" aria-label="Drag tools onto sampler steps">
+            {SAMPLER_TOOL_GROUPS.map((group) => (
+              <div key={group.id} className="sampler-tool-group">
+                <span>{group.label}</span>
+                <div>
+                  {group.tools.map((tool) => {
+                    const activeToolId = activeSamplerTool?.groupId === group.id
+                      ? activeSamplerTool.toolId
+                      : selectedPlacedSlot?.[`${group.id}Id`] ??
+                        (group.id === 'repeat' ? SAMPLER_DEFAULT_REPEAT_ID : null)
+
+                    return (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        draggable
+                        className={activeToolId === tool.id ? 'active' : ''}
+                        style={{ '--tool-color': tool.color }}
+                        onClick={() => handleSamplerToolSelect(group.id, tool.id)}
+                        onDragStart={(event) =>
+                          handleSamplerToolDragStart(event, group.id, tool.id)
+                        }
+                      >
+                        {tool.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="sampler-action-row">
@@ -6708,6 +6881,7 @@ function NoteGameApp({ onOpenChordPad, onOpenGroovebox, onOpenSampler }) {
   const [lastGuessNote, setLastGuessNote] = useState(null)
   const [score, setScore] = useState(0)
   const audioContextRef = useRef(null)
+  const sampleBufferRef = useRef(null)
   const timerRef = useRef(null)
   const feedbackTimerRef = useRef(null)
 
@@ -6736,6 +6910,19 @@ function NoteGameApp({ onOpenChordPad, onOpenGroovebox, onOpenSampler }) {
     return audioContextRef.current
   }
 
+  const loadNoteGameSample = useCallback(async (context) => {
+    if (sampleBufferRef.current) {
+      return sampleBufferRef.current
+    }
+
+    const response = await fetch(noteGameSampleUrl)
+    const audioData = await response.arrayBuffer()
+    const buffer = await context.decodeAudioData(audioData)
+
+    sampleBufferRef.current = buffer
+    return buffer
+  }, [])
+
   const playTone = useCallback(async (noteNumber, duration = 0.44, accent = false, mood = 'note') => {
     const context = await ensureAudio()
     const now = context.currentTime
@@ -6743,36 +6930,31 @@ function NoteGameApp({ onOpenChordPad, onOpenGroovebox, onOpenSampler }) {
     const pan = context.createStereoPanner()
     const filter = context.createBiquadFilter()
     const compressor = context.createDynamicsCompressor()
-    const baseFrequency = noteGameFrequency(noteNumber)
     const isWrong = mood === 'wrong'
     const isHarmony = mood === 'harmony'
-    const partials = isWrong
-      ? [
-          { ratio: 1, type: 'triangle', gain: 0.11, detune: -8 },
-          { ratio: 1.5, type: 'sine', gain: 0.035, detune: 0 },
-        ]
-      : isHarmony
-        ? [
-            { ratio: 1, type: 'sine', gain: 0.055, detune: 0 },
-            { ratio: 2, type: 'triangle', gain: 0.014, detune: -5 },
-          ]
-      : [
-          { ratio: 1, type: 'triangle', gain: accent ? 0.16 : 0.12, detune: 0 },
-          { ratio: 2, type: 'sine', gain: accent ? 0.035 : 0.024, detune: 3 },
-          { ratio: 3, type: 'sine', gain: 0.014, detune: -4 },
-        ]
+    const sampleBuffer = await loadNoteGameSample(context)
+    const source = context.createBufferSource()
+    const shimmer = context.createGain()
+    const playbackRate = 2 ** ((noteNumber - NOTE_GAME_SAMPLE_ROOT_NOTE) / 12)
+    const sourceDuration = Math.min(sampleBuffer.duration / playbackRate, duration + 0.14)
 
     output.gain.setValueAtTime(0.0001, now)
-    output.gain.exponentialRampToValueAtTime(1, now + (isWrong ? 0.006 : 0.018))
-    output.gain.exponentialRampToValueAtTime(0.22, now + (isWrong ? 0.09 : 0.16))
-    output.gain.setTargetAtTime(0.0001, now + duration * (isWrong ? 0.34 : 0.72), 0.055)
+    output.gain.exponentialRampToValueAtTime(
+      isWrong ? 0.42 : isHarmony ? 0.34 : accent ? 0.82 : 0.68,
+      now + (isWrong ? 0.006 : 0.018),
+    )
+    output.gain.exponentialRampToValueAtTime(
+      isWrong ? 0.1 : isHarmony ? 0.14 : 0.24,
+      now + (isWrong ? 0.09 : 0.18),
+    )
+    output.gain.setTargetAtTime(0.0001, now + duration * (isWrong ? 0.34 : 0.78), 0.06)
 
     filter.type = 'lowpass'
     filter.frequency.setValueAtTime(
-      isWrong ? 920 : isHarmony ? 1250 : accent ? 2100 : 1800,
+      isWrong ? 720 : isHarmony ? 1180 : accent ? 3100 : 2400,
       now,
     )
-    filter.frequency.exponentialRampToValueAtTime(isWrong ? 420 : isHarmony ? 620 : 980, now + duration)
+    filter.frequency.exponentialRampToValueAtTime(isWrong ? 360 : isHarmony ? 680 : 1150, now + duration)
     filter.Q.value = isWrong ? 2.1 : isHarmony ? 0.95 : 0.7
     compressor.threshold.value = -24
     compressor.knee.value = 18
@@ -6781,25 +6963,19 @@ function NoteGameApp({ onOpenChordPad, onOpenGroovebox, onOpenSampler }) {
     compressor.release.value = 0.12
     pan.pan.value = isHarmony ? -0.22 : ((noteNumber % 12) - 5.5) / 16
 
-    partials.forEach((partial) => {
-      const oscillator = context.createOscillator()
-      const partialGain = context.createGain()
-
-      oscillator.type = partial.type
-      oscillator.frequency.value = baseFrequency * partial.ratio
-      oscillator.detune.value = partial.detune
-      partialGain.gain.value = partial.gain
-      oscillator.connect(partialGain)
-      partialGain.connect(filter)
-      oscillator.start(now)
-      oscillator.stop(now + duration + 0.18)
-    })
+    source.buffer = sampleBuffer
+    source.playbackRate.setValueAtTime(playbackRate * (isWrong ? 0.985 : 1), now)
+    shimmer.gain.value = isHarmony ? 0.18 : accent ? 0.32 : 0.24
+    source.connect(shimmer)
+    shimmer.connect(filter)
+    source.start(now, 0, sourceDuration)
+    source.stop(now + sourceDuration)
 
     filter.connect(output)
     output.connect(pan)
     pan.connect(compressor)
     compressor.connect(context.destination)
-  }, [])
+  }, [loadNoteGameSample])
 
   const playHarmony = useCallback((notes, duration = 0.58) => {
     if (!notes?.length) {
