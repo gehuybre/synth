@@ -5,6 +5,11 @@ import {
 } from './midiLoops'
 import './App.css'
 
+const SAMPLER_SAMPLE_URLS = import.meta.glob('../MIDI LOOPS/Loops/*.wav', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+})
 const STEP_COUNT = 16
 const MIN_PATTERN_LENGTH = 1
 const MAX_PATTERN_LENGTH = 64
@@ -146,6 +151,106 @@ const NOTE_PAGE_COUNT = Math.ceil(
 function noteColorForNumber(noteNumber) {
   const hue = (noteNumber * 31) % 360
   return `hsl(${hue} 82% 58%)`
+}
+
+const NOTE_GAME_KEYS = [
+  { note: 60, label: 'C', key: 'a' },
+  { note: 62, label: 'D', key: 's' },
+  { note: 64, label: 'E', key: 'd' },
+  { note: 65, label: 'F', key: 'f' },
+  { note: 67, label: 'G', key: 'j' },
+  { note: 69, label: 'A', key: 'k' },
+  { note: 71, label: 'B', key: 'l' },
+  { note: 72, label: 'C', key: ';' },
+]
+const NOTE_GAME_SNIPPETS = [
+  {
+    id: 'joy',
+    title: 'Ode to Joy',
+    composer: 'Beethoven',
+    missingIndices: [7, 14, 23],
+    notes: [
+      64, 64, 65, 67, 67, 65, 64, 62,
+      60, 60, 62, 64, 64, 62, 62, 64,
+      64, 65, 67, 67, 65, 64, 62, 60,
+      60, 62, 64, 62, 60, 60,
+    ],
+    harmony: [
+      [48, 55], [48, 55], [48, 57], [48, 55],
+      [47, 55], [47, 55], [48, 55], [43, 50],
+      [48, 55], [48, 55], [43, 55], [48, 55],
+      [47, 55], [43, 55], [47, 55], [48, 55],
+      [48, 55], [48, 55], [48, 57], [48, 55],
+      [47, 55], [47, 55], [48, 55], [43, 50],
+      [48, 55], [43, 55], [48, 55], [43, 55],
+      [48, 55], [48, 55],
+    ],
+  },
+  {
+    id: 'night',
+    title: 'Eine kleine Nachtmusik',
+    composer: 'Mozart',
+    missingIndices: [6, 13, 21],
+    notes: [
+      67, 62, 67, 62, 67, 71, 72, 71,
+      69, 67, 65, 64, 65, 67, 69, 67,
+      65, 64, 62, 64, 65, 67, 62, 67,
+    ],
+    harmony: [
+      [43, 55], [43, 55], [43, 55], [43, 55],
+      [47, 55], [47, 55], [48, 55], [47, 55],
+      [45, 52], [43, 55], [41, 53], [40, 52],
+      [41, 53], [43, 55], [45, 52], [43, 55],
+      [41, 53], [40, 52], [38, 50], [40, 52],
+      [41, 53], [43, 55], [43, 55], [43, 55],
+    ],
+  },
+  {
+    id: 'swan',
+    title: 'Swan Lake',
+    composer: 'Tchaikovsky',
+    missingIndices: [5, 12, 19],
+    notes: [
+      69, 71, 72, 71, 69, 67, 65, 67,
+      69, 65, 67, 69, 71, 72, 71, 69,
+      67, 65, 67, 69, 65, 64, 65,
+    ],
+    harmony: [
+      [45, 52], [45, 52], [45, 52], [45, 52],
+      [43, 50], [43, 50], [41, 48], [43, 50],
+      [45, 52], [41, 48], [43, 50], [45, 52],
+      [47, 52], [48, 55], [47, 52], [45, 52],
+      [43, 50], [41, 48], [43, 50], [45, 52],
+      [41, 48], [40, 47], [41, 48],
+    ],
+  },
+]
+const NOTE_GAME_STEP_MS = 760
+const NOTE_GAME_GATE_X = 72
+const NOTE_GAME_NOTE_SPACING = 17
+const NOTE_GAME_HARMONY_MIN = 38
+const NOTE_GAME_HARMONY_MAX = 57
+
+function noteGameLabel(noteNumber) {
+  const note = NOTE_NAMES[noteNumber % 12]
+  const octave = Math.floor(noteNumber / 12) - 1
+
+  return `${note.label}${octave}`
+}
+
+function noteGameLanePercent(noteNumber) {
+  const min = NOTE_GAME_KEYS[0].note
+  const max = NOTE_GAME_KEYS[NOTE_GAME_KEYS.length - 1].note
+
+  return 88 - ((noteNumber - min) / (max - min)) * 76
+}
+
+function noteGameHarmonyLanePercent(noteNumber) {
+  return 86 - ((noteNumber - NOTE_GAME_HARMONY_MIN) / (NOTE_GAME_HARMONY_MAX - NOTE_GAME_HARMONY_MIN)) * 30
+}
+
+function noteGameFrequency(noteNumber) {
+  return 440 * 2 ** ((noteNumber - 69) / 12)
 }
 
 const PAD_OPTIONS = NOTE_NAMES.map((note, index) => ({
@@ -375,6 +480,48 @@ const PAD_APP_PROGRESSIONS = [
   { id: 'sad', label: 'vi-IV-I-V', padIds: ['pad-5', 'pad-3', 'pad-0', 'pad-4'] },
   { id: 'lift', label: 'I-IV-V-IV', padIds: ['pad-0', 'pad-3', 'pad-4', 'pad-3'] },
 ]
+const SAMPLER_STEP_COUNT = 8
+const SAMPLER_LANES = [
+  { id: 'high', label: 'High', pitch: 1.34, color: '#ff4d6d' },
+  { id: 'middle', label: 'Normal', pitch: 1, color: '#2ec4b6' },
+  { id: 'low', label: 'Low', pitch: 0.74, color: '#3a86ff' },
+]
+const SAMPLER_COLORS = [
+  '#ff4d6d',
+  '#ffbe0b',
+  '#2ec4b6',
+  '#3a86ff',
+  '#8338ec',
+  '#fb8500',
+  '#06d6a0',
+  '#f15bb5',
+]
+
+function createSamplerSamples() {
+  return Object.entries(SAMPLER_SAMPLE_URLS)
+    .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath, undefined, { numeric: true }))
+    .map(([path, url], index) => {
+      const fileName = path.split('/').pop()?.replace(/\.wav$/i, '') ?? `Sample ${index + 1}`
+      const match = fileName.match(/^(\d+)\s+(.+?)\s+(\d+)\s*bpm$/i)
+      const number = match?.[1] ?? String(index + 1).padStart(2, '0')
+      const bpm = match ? Number(match[3]) : 160
+
+      return {
+        id: `sample-${number}`,
+        sampleId: `sample-${number}`,
+        label: number,
+        name: match ? match[2].toLowerCase() : 'sample',
+        bpm,
+        url,
+        color: SAMPLER_COLORS[index % SAMPLER_COLORS.length],
+        chunk: { start: 0, length: 1 },
+      }
+    })
+}
+
+function createEmptySamplerGrid() {
+  return SAMPLER_LANES.map(() => Array.from({ length: SAMPLER_STEP_COUNT }, () => null))
+}
 const PAD_APP_DRUM_VOICES = [
   { id: 'kick', label: 'Kick' },
   { id: 'snare', label: 'Snare' },
@@ -2131,7 +2278,7 @@ function buildPadAppPads(rootSemitone, scaleId, octave, toneMode, variationId) {
   })
 }
 
-function ChordPadApp({ onOpenGroovebox }) {
+function ChordPadApp({ onOpenGroovebox, onOpenSampler, onOpenNoteGame }) {
   const [rootId, setRootId] = useState('c')
   const [scaleId, setScaleId] = useState('major')
   const [instrumentId, setInstrumentId] = useState('glass')
@@ -2956,9 +3103,17 @@ function ChordPadApp({ onOpenGroovebox }) {
           <h1>Chord Pad</h1>
         </div>
 
-        <a href="#groovebox" className="app-switch-button" onClick={onOpenGroovebox}>
-          Groovebox
-        </a>
+        <nav className="app-switch-group" aria-label="Open app">
+          <a href="#note-game" className="app-switch-button" onClick={onOpenNoteGame}>
+            Game
+          </a>
+          <a href="#sampler" className="app-switch-button" onClick={onOpenSampler}>
+            Sampler
+          </a>
+          <a href="#groovebox" className="app-switch-button" onClick={onOpenGroovebox}>
+            Groovebox
+          </a>
+        </nav>
       </header>
 
       <section className="pad-workspace">
@@ -3337,7 +3492,459 @@ function ChordPadApp({ onOpenGroovebox }) {
   )
 }
 
-function GrooveboxApp({ onOpenChordPad }) {
+function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
+  const [samples] = useState(createSamplerSamples)
+  const [pieces, setPieces] = useState([])
+  const [grid, setGrid] = useState(createEmptySamplerGrid)
+  const [selectedSlot, setSelectedSlot] = useState(null)
+  const [selectedPadId, setSelectedPadId] = useState(samples[0]?.id ?? null)
+  const [tempo, setTempo] = useState(samples[0]?.bpm ?? 160)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isLooping, setIsLooping] = useState(true)
+  const [currentStep, setCurrentStep] = useState(-1)
+
+  const audioContextRef = useRef(null)
+  const masterGainRef = useRef(null)
+  const sampleBuffersRef = useRef(new Map())
+  const playbackTimerRef = useRef(null)
+  const loopRef = useRef(isLooping)
+  const gridRef = useRef(grid)
+  const pads = [...samples, ...pieces]
+  const selectedPad = pads.find((pad) => pad.id === selectedPadId) ?? pads[0]
+  const selectedPlacedSlot =
+    selectedSlot && grid[selectedSlot.laneIndex]?.[selectedSlot.stepIndex]
+      ? grid[selectedSlot.laneIndex][selectedSlot.stepIndex]
+      : null
+  const stepSeconds = 60 / tempo
+
+  const ensureSamplerAudio = async () => {
+    if (!audioContextRef.current) {
+      const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext
+
+      if (!AudioContextConstructor) {
+        throw new Error('Web Audio is not available in this browser.')
+      }
+
+      const context = new AudioContextConstructor({ latencyHint: 'interactive' })
+      const masterGain = context.createGain()
+
+      masterGain.gain.value = 0.82
+      masterGain.connect(context.destination)
+      audioContextRef.current = context
+      masterGainRef.current = masterGain
+    }
+
+    if (audioContextRef.current.state !== 'running') {
+      await audioContextRef.current.resume()
+    }
+
+    return audioContextRef.current
+  }
+
+  const loadSampleBuffer = async (pad) => {
+    const baseSample = samples.find((sample) => sample.sampleId === pad.sampleId) ?? samples[0]
+
+    if (!baseSample) {
+      return null
+    }
+
+    if (sampleBuffersRef.current.has(baseSample.sampleId)) {
+      return sampleBuffersRef.current.get(baseSample.sampleId)
+    }
+
+    const context = await ensureSamplerAudio()
+    const response = await fetch(baseSample.url)
+    const audioData = await response.arrayBuffer()
+    const buffer = await context.decodeAudioData(audioData)
+
+    sampleBuffersRef.current.set(baseSample.sampleId, buffer)
+    return buffer
+  }
+
+  const playSamplerPad = async (
+    pad,
+    lane = SAMPLER_LANES[1],
+    startAt = audioContextRef.current?.currentTime ?? 0,
+    maxDuration = 2.2,
+  ) => {
+    const context = await ensureSamplerAudio()
+    const buffer = await loadSampleBuffer(pad)
+
+    if (!buffer || !masterGainRef.current) {
+      return
+    }
+
+    const source = context.createBufferSource()
+    const gain = context.createGain()
+    const chunkStart = buffer.duration * pad.chunk.start
+    const chunkLength = buffer.duration * pad.chunk.length
+    const duration = Math.max(0.05, Math.min(chunkLength, maxDuration))
+
+    source.buffer = buffer
+    source.playbackRate.value = lane.pitch
+    gain.gain.setValueAtTime(0.0001, startAt)
+    gain.gain.exponentialRampToValueAtTime(0.86, startAt + 0.01)
+    gain.gain.setTargetAtTime(0.0001, startAt + duration * 0.82, 0.04)
+    source.connect(gain)
+    gain.connect(masterGainRef.current)
+    source.start(startAt, chunkStart, duration)
+    source.onended = () => {
+      source.disconnect()
+      gain.disconnect()
+    }
+  }
+
+  const playGridStep = (stepIndex) => {
+    const context = audioContextRef.current
+
+    if (!context) {
+      return
+    }
+
+    gridRef.current.forEach((laneSlots, laneIndex) => {
+      const slot = laneSlots[stepIndex]
+
+      if (!slot) {
+        return
+      }
+
+      const lane = SAMPLER_LANES[laneIndex]
+      const pad = pads.find((item) => item.id === slot.padId)
+
+      if (!pad) {
+        return
+      }
+
+      const repeat = Math.max(1, slot.repeat)
+      const repeatGap = stepSeconds / repeat
+
+      Array.from({ length: repeat }, (_, repeatIndex) => {
+        void playSamplerPad(
+          pad,
+          lane,
+          context.currentTime + repeatIndex * repeatGap,
+          repeatGap * 0.82,
+        )
+      })
+    })
+  }
+
+  const stopPlayback = useCallback(() => {
+    if (playbackTimerRef.current) {
+      window.clearInterval(playbackTimerRef.current)
+      playbackTimerRef.current = null
+    }
+
+    setIsPlaying(false)
+    setCurrentStep(-1)
+  }, [])
+
+  const startPlayback = async () => {
+    await ensureSamplerAudio()
+    stopPlayback()
+
+    let stepIndex = 0
+    setIsPlaying(true)
+    setCurrentStep(stepIndex)
+    playGridStep(stepIndex)
+    playbackTimerRef.current = window.setInterval(() => {
+      stepIndex += 1
+
+      if (stepIndex >= SAMPLER_STEP_COUNT) {
+        if (!loopRef.current) {
+          stopPlayback()
+          return
+        }
+
+        stepIndex = 0
+      }
+
+      setCurrentStep(stepIndex)
+      playGridStep(stepIndex)
+    }, stepSeconds * 1000)
+  }
+
+  const placePad = (laneIndex, stepIndex, padId) => {
+    const pad = pads.find((item) => item.id === padId)
+
+    if (!pad) {
+      return
+    }
+
+    setGrid((currentGrid) =>
+      currentGrid.map((laneSlots, currentLaneIndex) =>
+        laneSlots.map((slot, currentStepIndex) =>
+          currentLaneIndex === laneIndex && currentStepIndex === stepIndex
+            ? {
+                id: `${pad.id}-${laneIndex}-${stepIndex}-${Date.now()}`,
+                padId: pad.id,
+                repeat: slot?.repeat ?? 1,
+              }
+            : slot,
+        ),
+      ),
+    )
+    setSelectedSlot({ laneIndex, stepIndex })
+  }
+
+  const updateSelectedRepeat = (repeat) => {
+    if (!selectedSlot) {
+      return
+    }
+
+    setGrid((currentGrid) =>
+      currentGrid.map((laneSlots, laneIndex) =>
+        laneSlots.map((slot, stepIndex) =>
+          laneIndex === selectedSlot.laneIndex && stepIndex === selectedSlot.stepIndex && slot
+            ? { ...slot, repeat }
+            : slot,
+        ),
+      ),
+    )
+  }
+
+  const clearSelectedSlot = () => {
+    if (!selectedSlot) {
+      return
+    }
+
+    setGrid((currentGrid) =>
+      currentGrid.map((laneSlots, laneIndex) =>
+        laneSlots.map((slot, stepIndex) =>
+          laneIndex === selectedSlot.laneIndex && stepIndex === selectedSlot.stepIndex ? null : slot,
+        ),
+      ),
+    )
+    setSelectedSlot(null)
+  }
+
+  const handleSplice = () => {
+    if (!selectedPad) {
+      return
+    }
+
+    const baseSample = samples.find((sample) => sample.sampleId === selectedPad.sampleId)
+
+    if (!baseSample) {
+      return
+    }
+
+    const spliceParts = [
+      { id: 'start', label: `${baseSample.label}A`, start: 0 },
+      { id: 'mid', label: `${baseSample.label}B`, start: 1 / 3 },
+      { id: 'end', label: `${baseSample.label}C`, start: 2 / 3 },
+    ].map((part, index) => ({
+      id: `${baseSample.sampleId}-${part.id}`,
+      sampleId: baseSample.sampleId,
+      label: part.label,
+      name: part.id,
+      bpm: baseSample.bpm,
+      url: baseSample.url,
+      color: SAMPLER_COLORS[(samples.indexOf(baseSample) + index + 2) % SAMPLER_COLORS.length],
+      chunk: { start: part.start, length: 1 / 3 },
+    }))
+
+    setPieces((currentPieces) => [
+      ...currentPieces.filter((piece) => piece.sampleId !== baseSample.sampleId),
+      ...spliceParts,
+    ])
+    setSelectedPadId(spliceParts[0].id)
+  }
+
+  useEffect(() => {
+    loopRef.current = isLooping
+  }, [isLooping])
+
+  useEffect(() => {
+    gridRef.current = grid
+  }, [grid])
+
+  useEffect(() => () => stopPlayback(), [stopPlayback])
+
+  return (
+    <main className="sampler-shell">
+      <header className="sampler-hero">
+        <div>
+          <h1>Sampler</h1>
+        </div>
+
+        <nav className="app-switch-group" aria-label="Open app">
+          <a href="#note-game" className="app-switch-button" onClick={onOpenNoteGame}>
+            Game
+          </a>
+          <a href="#pad" className="app-switch-button" onClick={onOpenChordPad}>
+            Chord Pad
+          </a>
+          <a href="#groovebox" className="app-switch-button" onClick={onOpenGroovebox}>
+            Groovebox
+          </a>
+        </nav>
+      </header>
+
+      <section className="sampler-workspace">
+        <div className="sampler-pad-bank" aria-label="Sample pads">
+          {pads.map((pad) => (
+            <button
+              key={pad.id}
+              type="button"
+              className={`sampler-source-pad ${selectedPadId === pad.id ? 'active' : ''}`}
+              style={{ '--sample-color': pad.color }}
+              draggable
+              onClick={() => {
+                setSelectedPadId(pad.id)
+                void playSamplerPad(pad)
+              }}
+              onDragStart={(event) => {
+                event.dataTransfer.setData('text/plain', pad.id)
+                setSelectedPadId(pad.id)
+              }}
+            >
+              <strong>{pad.label}</strong>
+              <span>{pad.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="sampler-lane-board">
+          <div className="sampler-step-numbers" aria-hidden="true">
+            <span />
+            {Array.from({ length: SAMPLER_STEP_COUNT }, (_, index) => (
+              <strong key={index}>{index + 1}</strong>
+            ))}
+          </div>
+
+          {SAMPLER_LANES.map((lane, laneIndex) => (
+            <div key={lane.id} className="sampler-lane" style={{ '--lane-color': lane.color }}>
+              <button
+                type="button"
+                className="sampler-lane-label"
+                onClick={() => selectedPad && void playSamplerPad(selectedPad, lane)}
+              >
+                {lane.label}
+              </button>
+
+              {grid[laneIndex].map((slot, stepIndex) => {
+                const pad = slot ? pads.find((item) => item.id === slot.padId) : null
+                const isSelected =
+                  selectedSlot?.laneIndex === laneIndex && selectedSlot?.stepIndex === stepIndex
+
+                return (
+                  <button
+                    key={`${lane.id}-${stepIndex}`}
+                    type="button"
+                    className={[
+                      'sampler-slot',
+                      slot ? 'filled' : '',
+                      isSelected ? 'selected' : '',
+                      currentStep === stepIndex ? 'playing' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={{ '--sample-color': pad?.color ?? lane.color }}
+                    onClick={() => {
+                      setSelectedSlot({ laneIndex, stepIndex })
+
+                      if (pad) {
+                        void playSamplerPad(pad, lane)
+                      } else if (selectedPad) {
+                        placePad(laneIndex, stepIndex, selectedPad.id)
+                      }
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      placePad(laneIndex, stepIndex, event.dataTransfer.getData('text/plain'))
+                    }}
+                    aria-label={`${lane.label} step ${stepIndex + 1}`}
+                  >
+                    {pad ? (
+                      <>
+                        <strong>{pad.label}</strong>
+                        <span>{'•'.repeat(slot.repeat)}</span>
+                      </>
+                    ) : (
+                      <span>+</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        <aside className="sampler-tools" aria-label="Sampler controls">
+          <div className="sampler-transport">
+            <button
+              type="button"
+              className={`sampler-play-button ${isPlaying ? 'stop' : 'play'}`}
+              onClick={() => (isPlaying ? stopPlayback() : void startPlayback())}
+            >
+              {isPlaying ? 'Stop' : 'Play'}
+            </button>
+            <button
+              type="button"
+              className={`sampler-loop-button ${isLooping ? 'active' : ''}`}
+              onClick={() => setIsLooping((current) => !current)}
+              aria-pressed={isLooping}
+            >
+              Loop
+            </button>
+          </div>
+
+          <label className="sampler-control">
+            <span>Speed</span>
+            <input
+              type="range"
+              min="90"
+              max="190"
+              value={tempo}
+              onChange={(event) => setTempo(Number(event.target.value))}
+            />
+            <strong>{tempo}</strong>
+          </label>
+
+          <div className="sampler-repeat-box">
+            <span>Repeat</span>
+            <div>
+              {[1, 2, 4].map((repeat) => (
+                <button
+                  key={repeat}
+                  type="button"
+                  className={selectedPlacedSlot?.repeat === repeat ? 'active' : ''}
+                  onClick={() => updateSelectedRepeat(repeat)}
+                  disabled={!selectedPlacedSlot}
+                >
+                  {'•'.repeat(repeat)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="sampler-action-row">
+            <button type="button" onClick={handleSplice} disabled={!selectedPad}>
+              Split
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                stopPlayback()
+                setGrid(createEmptySamplerGrid())
+                setSelectedSlot(null)
+              }}
+            >
+              Clear
+            </button>
+            <button type="button" onClick={clearSelectedSlot} disabled={!selectedPlacedSlot}>
+              Empty
+            </button>
+          </div>
+        </aside>
+      </section>
+    </main>
+  )
+}
+
+function GrooveboxApp({ onOpenChordPad, onOpenSampler, onOpenNoteGame }) {
   const [bassTracks, setBassTracks] = useState(INITIAL_BASS_TRACKS)
   const [melodyTracks, setMelodyTracks] = useState(INITIAL_MELODY_TRACKS)
   const [drums, setDrums] = useState(INITIAL_DRUMS)
@@ -5535,9 +6142,17 @@ function GrooveboxApp({ onOpenChordPad }) {
       <section className="hero-panel">
         <div className="app-title-row">
           <h1>Groovebox</h1>
-          <a href="#pad" className="app-switch-button" onClick={onOpenChordPad}>
-            Chord Pad
-          </a>
+          <nav className="app-switch-group" aria-label="Open app">
+            <a href="#note-game" className="app-switch-button" onClick={onOpenNoteGame}>
+              Game
+            </a>
+            <a href="#pad" className="app-switch-button" onClick={onOpenChordPad}>
+              Chord Pad
+            </a>
+            <a href="#sampler" className="app-switch-button" onClick={onOpenSampler}>
+              Sampler
+            </a>
+          </nav>
         </div>
 
         <div className="transport">
@@ -6068,12 +6683,437 @@ function GrooveboxApp({ onOpenChordPad }) {
   )
 }
 
+function NoteGameApp({ onOpenChordPad, onOpenGroovebox, onOpenSampler }) {
+  const [snippetIndex, setSnippetIndex] = useState(0)
+  const [playhead, setPlayhead] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isWaitingForNote, setIsWaitingForNote] = useState(false)
+  const [lastGuess, setLastGuess] = useState(null)
+  const [lastGuessNote, setLastGuessNote] = useState(null)
+  const [score, setScore] = useState(0)
+  const audioContextRef = useRef(null)
+  const timerRef = useRef(null)
+  const feedbackTimerRef = useRef(null)
+
+  const snippet = NOTE_GAME_SNIPPETS[snippetIndex]
+  const missingIndices = snippet.missingIndices
+  const solvedMissingCount = missingIndices.filter((index) => index < playhead).length
+  const missingNote = isWaitingForNote ? snippet.notes[playhead] : null
+  const choices = NOTE_GAME_KEYS
+  const isFinished = playhead >= snippet.notes.length
+
+  const ensureAudio = async () => {
+    if (!audioContextRef.current) {
+      const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext
+
+      if (!AudioContextConstructor) {
+        throw new Error('Web Audio is not available in this browser.')
+      }
+
+      audioContextRef.current = new AudioContextConstructor({ latencyHint: 'interactive' })
+    }
+
+    if (audioContextRef.current.state !== 'running') {
+      await audioContextRef.current.resume()
+    }
+
+    return audioContextRef.current
+  }
+
+  const playTone = useCallback(async (noteNumber, duration = 0.44, accent = false, mood = 'note') => {
+    const context = await ensureAudio()
+    const now = context.currentTime
+    const output = context.createGain()
+    const pan = context.createStereoPanner()
+    const filter = context.createBiquadFilter()
+    const compressor = context.createDynamicsCompressor()
+    const baseFrequency = noteGameFrequency(noteNumber)
+    const isWrong = mood === 'wrong'
+    const isHarmony = mood === 'harmony'
+    const partials = isWrong
+      ? [
+          { ratio: 1, type: 'triangle', gain: 0.11, detune: -8 },
+          { ratio: 1.5, type: 'sine', gain: 0.035, detune: 0 },
+        ]
+      : isHarmony
+        ? [
+            { ratio: 1, type: 'sine', gain: 0.055, detune: 0 },
+            { ratio: 2, type: 'triangle', gain: 0.014, detune: -5 },
+          ]
+      : [
+          { ratio: 1, type: 'triangle', gain: accent ? 0.16 : 0.12, detune: 0 },
+          { ratio: 2, type: 'sine', gain: accent ? 0.035 : 0.024, detune: 3 },
+          { ratio: 3, type: 'sine', gain: 0.014, detune: -4 },
+        ]
+
+    output.gain.setValueAtTime(0.0001, now)
+    output.gain.exponentialRampToValueAtTime(1, now + (isWrong ? 0.006 : 0.018))
+    output.gain.exponentialRampToValueAtTime(0.22, now + (isWrong ? 0.09 : 0.16))
+    output.gain.setTargetAtTime(0.0001, now + duration * (isWrong ? 0.34 : 0.72), 0.055)
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(
+      isWrong ? 920 : isHarmony ? 1250 : accent ? 2100 : 1800,
+      now,
+    )
+    filter.frequency.exponentialRampToValueAtTime(isWrong ? 420 : isHarmony ? 620 : 980, now + duration)
+    filter.Q.value = isWrong ? 2.1 : isHarmony ? 0.95 : 0.7
+    compressor.threshold.value = -24
+    compressor.knee.value = 18
+    compressor.ratio.value = 4
+    compressor.attack.value = 0.006
+    compressor.release.value = 0.12
+    pan.pan.value = isHarmony ? -0.22 : ((noteNumber % 12) - 5.5) / 16
+
+    partials.forEach((partial) => {
+      const oscillator = context.createOscillator()
+      const partialGain = context.createGain()
+
+      oscillator.type = partial.type
+      oscillator.frequency.value = baseFrequency * partial.ratio
+      oscillator.detune.value = partial.detune
+      partialGain.gain.value = partial.gain
+      oscillator.connect(partialGain)
+      partialGain.connect(filter)
+      oscillator.start(now)
+      oscillator.stop(now + duration + 0.18)
+    })
+
+    filter.connect(output)
+    output.connect(pan)
+    pan.connect(compressor)
+    compressor.connect(context.destination)
+  }, [])
+
+  const playHarmony = useCallback((notes, duration = 0.58) => {
+    if (!notes?.length) {
+      return
+    }
+
+    notes.forEach((noteNumber) => {
+      void playTone(noteNumber, duration, false, 'harmony')
+    })
+  }, [playTone])
+
+  const clearGameTimer = useCallback(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+
+    if (feedbackTimerRef.current) {
+      window.clearTimeout(feedbackTimerRef.current)
+      feedbackTimerRef.current = null
+    }
+  }, [])
+
+  const resetSnippet = useCallback((nextIndex = snippetIndex) => {
+    clearGameTimer()
+    setSnippetIndex(nextIndex)
+    setPlayhead(0)
+    setIsPlaying(false)
+    setIsWaitingForNote(false)
+    setLastGuess(null)
+    setLastGuessNote(null)
+  }, [clearGameTimer, snippetIndex])
+
+  const startSnippet = async () => {
+    await ensureAudio()
+    clearGameTimer()
+    setPlayhead(0)
+    setIsWaitingForNote(false)
+    setLastGuess(null)
+    setLastGuessNote(null)
+    setIsPlaying(true)
+  }
+
+  useEffect(() => {
+    if (!isPlaying || isWaitingForNote || isFinished) {
+      return
+    }
+
+    if (missingIndices.includes(playhead)) {
+      timerRef.current = window.setTimeout(() => {
+        setIsWaitingForNote(true)
+      }, 0)
+      return clearGameTimer
+    }
+
+    playHarmony(snippet.harmony?.[playhead])
+    void playTone(snippet.notes[playhead])
+    timerRef.current = window.setTimeout(() => {
+      setPlayhead((currentPlayhead) => {
+        const nextPlayhead = currentPlayhead + 1
+
+        if (nextPlayhead >= snippet.notes.length) {
+          setIsPlaying(false)
+        }
+
+        return nextPlayhead
+      })
+    }, NOTE_GAME_STEP_MS)
+
+    return clearGameTimer
+  }, [
+    clearGameTimer,
+    isFinished,
+    isPlaying,
+    isWaitingForNote,
+    playHarmony,
+    playTone,
+    playhead,
+    missingIndices,
+    snippet,
+  ])
+
+  useEffect(() => () => clearGameTimer(), [clearGameTimer])
+
+  const handleGuess = async (noteNumber) => {
+    if (!isWaitingForNote) {
+      await playTone(noteNumber, 0.28, true)
+      return
+    }
+
+    const isCorrect = noteNumber === missingNote
+    await playTone(noteNumber, isCorrect ? 0.5 : 0.18, true, isCorrect ? 'correct' : 'wrong')
+    setLastGuess(isCorrect ? 'correct' : 'wrong')
+    setLastGuessNote(noteNumber)
+
+    if (!isCorrect) {
+      clearGameTimer()
+      feedbackTimerRef.current = window.setTimeout(() => {
+        setLastGuess(null)
+        setLastGuessNote(null)
+      }, 680)
+      return
+    }
+
+    setScore((currentScore) => currentScore + 1)
+    clearGameTimer()
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setIsWaitingForNote(false)
+      setLastGuess(null)
+      setLastGuessNote(null)
+      setPlayhead((currentPlayhead) => currentPlayhead + 1)
+      setIsPlaying(true)
+    }, 360)
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase()
+      const note = NOTE_GAME_KEYS.find((item) => item.key === key)
+
+      if (!note) {
+        return
+      }
+
+      event.preventDefault()
+      void handleGuess(note.note)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
+
+  const handleNextSnippet = () => {
+    resetSnippet((snippetIndex + 1) % NOTE_GAME_SNIPPETS.length)
+  }
+
+  return (
+    <main className="note-game-shell">
+      <header className="note-game-hero">
+        <div>
+          <p className="eyebrow">Listen and complete the melody</p>
+          <h1>Missing Note</h1>
+        </div>
+
+        <nav className="app-switch-group" aria-label="Open app">
+          <a href="#pad" className="app-switch-button" onClick={onOpenChordPad}>
+            Chord Pad
+          </a>
+          <a href="#sampler" className="app-switch-button" onClick={onOpenSampler}>
+            Sampler
+          </a>
+          <a href="#groovebox" className="app-switch-button" onClick={onOpenGroovebox}>
+            Groovebox
+          </a>
+        </nav>
+      </header>
+
+      <section className="note-game-workspace">
+        <div
+          className={['note-game-stage', lastGuess ? `guess-${lastGuess}` : '']
+            .filter(Boolean)
+            .join(' ')}
+          aria-label="Scrolling melody"
+        >
+          <div className="note-game-scorebar">
+            <div>
+              <span>{snippet.composer}</span>
+              <strong>{snippet.title}</strong>
+            </div>
+            <div>
+              <span>Missing notes</span>
+              <strong>
+                {solvedMissingCount}/{missingIndices.length}
+              </strong>
+            </div>
+            <div>
+              <span>Score</span>
+              <strong>{score}</strong>
+            </div>
+          </div>
+
+          <div className={['note-game-board', lastGuess ? `guess-${lastGuess}` : '']
+            .filter(Boolean)
+            .join(' ')}
+          >
+            <div className="note-game-gate" />
+            {choices.map((choice) => (
+              <div
+                key={choice.note}
+                className="note-game-lane"
+                style={{ top: `${noteGameLanePercent(choice.note)}%` }}
+              >
+                <span>{choice.label}</span>
+              </div>
+            ))}
+
+            {snippet.notes.map((noteNumber, index) => {
+              const isMissing = missingIndices.includes(index)
+              const isCurrentMissing = isMissing && index === playhead
+              const isUnsolvedMissing = isMissing && index >= playhead
+              const isActiveMissing = isCurrentMissing && isWaitingForNote
+              const offset = index - playhead
+              const left = isCurrentMissing
+                ? NOTE_GAME_GATE_X
+                : NOTE_GAME_GATE_X + offset * NOTE_GAME_NOTE_SPACING
+              const top = isUnsolvedMissing ? 50 : noteGameLanePercent(noteNumber)
+
+              if (left < -18 || left > 118) {
+                return null
+              }
+
+              return (
+                <div
+                  key={`${snippet.id}-${index}`}
+                  className={[
+                    'note-game-dash',
+                    index < playhead ? 'passed' : '',
+                    index === playhead ? 'current' : '',
+                    isMissing ? 'missing' : '',
+                    isCurrentMissing ? 'waiting' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={{
+                    '--note-color': noteColorForNumber(noteNumber),
+                    left: `${left}%`,
+                    top: `${top}%`,
+                  }}
+                  aria-label={isMissing ? 'Missing note' : noteGameLabel(noteNumber)}
+                >
+                  {isActiveMissing ? '?' : ''}
+                </div>
+              )
+            })}
+
+            {snippet.harmony?.flatMap((notes, index) => {
+              const offset = index - playhead
+              const left = NOTE_GAME_GATE_X + offset * NOTE_GAME_NOTE_SPACING
+
+              if (left < -18 || left > 118) {
+                return []
+              }
+
+              return notes.map((noteNumber, noteIndex) => (
+                <div
+                  key={`${snippet.id}-harmony-${index}-${noteIndex}`}
+                  className={[
+                    'note-game-dash',
+                    'harmony',
+                    index < playhead ? 'passed' : '',
+                    index === playhead ? 'current' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={{
+                    left: `${left}%`,
+                    top: `${noteGameHarmonyLanePercent(noteNumber)}%`,
+                  }}
+                  aria-hidden="true"
+                />
+              ))
+            })}
+          </div>
+
+          <div className="note-game-controls">
+            <button
+              type="button"
+              className="note-game-primary"
+              onClick={isPlaying ? () => resetSnippet() : startSnippet}
+            >
+              {isPlaying ? 'Restart' : isFinished ? 'Play again' : 'Play'}
+            </button>
+            <button type="button" onClick={handleNextSnippet}>
+              Next piece
+            </button>
+            <p className={`note-game-feedback ${lastGuess ?? ''}`}>
+              {isWaitingForNote
+                ? lastGuess === 'correct'
+                  ? 'Correct - keep listening'
+                  : lastGuess === 'wrong'
+                    ? 'Not that one - try again'
+                    : 'Choose the note that keeps the tune going'
+                : isFinished
+                  ? 'Nice. Choose another piece or play again'
+                  : 'The melody will pause at each mystery dash'}
+            </p>
+          </div>
+        </div>
+
+        <aside className="note-game-piano" aria-label="Piano note buttons">
+          {choices
+            .slice()
+            .reverse()
+            .map((choice) => (
+              <button
+                key={choice.note}
+                type="button"
+                className={choice.note === lastGuessNote && lastGuess ? lastGuess : ''}
+                style={{ '--key-color': noteColorForNumber(choice.note) }}
+                onClick={() => void handleGuess(choice.note)}
+              >
+                <span>{choice.label}</span>
+                <small>{choice.key.toUpperCase()}</small>
+              </button>
+            ))}
+        </aside>
+      </section>
+    </main>
+  )
+}
+
 function getActiveAppFromHash() {
   if (typeof window === 'undefined') {
     return 'pad'
   }
 
-  return window.location.hash === '#groovebox' ? 'groovebox' : 'pad'
+  if (window.location.hash === '#groovebox') {
+    return 'groovebox'
+  }
+
+  if (window.location.hash === '#sampler') {
+    return 'sampler'
+  }
+
+  if (window.location.hash === '#note-game') {
+    return 'note-game'
+  }
+
+  return 'pad'
 }
 
 function App() {
@@ -6088,10 +7128,38 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
+  if (activeApp === 'sampler') {
+    return (
+      <SamplerApp
+        onOpenChordPad={() => setActiveApp('pad')}
+        onOpenGroovebox={() => setActiveApp('groovebox')}
+        onOpenNoteGame={() => setActiveApp('note-game')}
+      />
+    )
+  }
+
+  if (activeApp === 'note-game') {
+    return (
+      <NoteGameApp
+        onOpenChordPad={() => setActiveApp('pad')}
+        onOpenGroovebox={() => setActiveApp('groovebox')}
+        onOpenSampler={() => setActiveApp('sampler')}
+      />
+    )
+  }
+
   return activeApp === 'pad' ? (
-    <ChordPadApp onOpenGroovebox={() => setActiveApp('groovebox')} />
+    <ChordPadApp
+      onOpenGroovebox={() => setActiveApp('groovebox')}
+      onOpenSampler={() => setActiveApp('sampler')}
+      onOpenNoteGame={() => setActiveApp('note-game')}
+    />
   ) : (
-    <GrooveboxApp onOpenChordPad={() => setActiveApp('pad')} />
+    <GrooveboxApp
+      onOpenChordPad={() => setActiveApp('pad')}
+      onOpenSampler={() => setActiveApp('sampler')}
+      onOpenNoteGame={() => setActiveApp('note-game')}
+    />
   )
 }
 
