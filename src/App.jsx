@@ -3720,6 +3720,17 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
     setSelectedSlot(null)
   }
 
+  const clearSamplerSlot = (laneIndex, stepIndex) => {
+    setGrid((currentGrid) =>
+      currentGrid.map((laneSlots, currentLaneIndex) =>
+        laneSlots.map((slot, currentStepIndex) =>
+          currentLaneIndex === laneIndex && currentStepIndex === stepIndex ? null : slot,
+        ),
+      ),
+    )
+    setSelectedSlot(null)
+  }
+
   const handleSplice = () => {
     if (!selectedPad) {
       return
@@ -3844,11 +3855,14 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
                       .join(' ')}
                     style={{ '--sample-color': pad?.color ?? lane.color }}
                     onClick={() => {
+                      if (pad) {
+                        clearSamplerSlot(laneIndex, stepIndex)
+                        return
+                      }
+
                       setSelectedSlot({ laneIndex, stepIndex })
 
-                      if (pad) {
-                        void playSamplerPad(pad, lane)
-                      } else if (selectedPad) {
+                      if (selectedPad) {
                         placePad(laneIndex, stepIndex, selectedPad.id)
                       }
                     }}
@@ -3857,7 +3871,7 @@ function SamplerApp({ onOpenChordPad, onOpenGroovebox, onOpenNoteGame }) {
                       event.preventDefault()
                       placePad(laneIndex, stepIndex, event.dataTransfer.getData('text/plain'))
                     }}
-                    aria-label={`${lane.label} step ${stepIndex + 1}`}
+                    aria-label={`${lane.label} step ${stepIndex + 1}${pad ? ', remove note' : ', add note'}`}
                   >
                     {pad ? (
                       <>
