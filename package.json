@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:notes": "node scripts/build-note-presets.mjs",
+    "build:sampler": "node scripts/build-sampler-snippets.mjs",
     "predev": "npm run build:notes",
     "dev": "vite",
     "prebuild": "npm run build:notes",

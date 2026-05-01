@@ -5,7 +5,7 @@ import {
 } from './midiLoops'
 import './App.css'
 
-const SAMPLER_SAMPLE_URLS = import.meta.glob('../MIDI LOOPS/Loops/*.wav', {
+const SAMPLER_SAMPLE_URLS = import.meta.glob('./assets/sampler-snippets/*.wav', {
   eager: true,
   import: 'default',
   query: '?url',
@@ -502,15 +502,17 @@ function createSamplerSamples() {
     .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath, undefined, { numeric: true }))
     .map(([path, url], index) => {
       const fileName = path.split('/').pop()?.replace(/\.wav$/i, '') ?? `Sample ${index + 1}`
-      const match = fileName.match(/^(\d+)\s+(.+?)\s+(\d+)\s*bpm$/i)
-      const number = match?.[1] ?? String(index + 1).padStart(2, '0')
+      const match = fileName.match(/^(\d+)_([a-z0-9-]+)_(\d+)_bpm_(\d+)$/i)
+      const number = match
+        ? `${match[1]}-${match[4]}`
+        : String(index + 1).padStart(2, '0')
       const bpm = match ? Number(match[3]) : 160
 
       return {
         id: `sample-${number}`,
         sampleId: `sample-${number}`,
         label: number,
-        name: match ? match[2].toLowerCase() : 'sample',
+        name: match ? match[2].replace(/-/g, ' ').toLowerCase() : 'sample',
         bpm,
         url,
         color: SAMPLER_COLORS[index % SAMPLER_COLORS.length],
